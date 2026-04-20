@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background_color">#6750A4</color>
+    <string name="app_name">JotJot</string>
+    <style name="Theme.JotJot" parent="android:Theme.Material.Light.NoActionBar"/>
+</resources>
