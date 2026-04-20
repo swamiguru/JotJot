@@ -51,6 +51,14 @@ fun TaskScreen(
     var taskRecurrence by remember { mutableStateOf(Recurrence.NONE) }
     var selectedDateTime by remember { mutableStateOf<Calendar?>(null) }
     var isCompletedExpanded by remember { mutableStateOf(false) }
+    
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    var datePickerState = rememberDatePickerState()
+    var timePickerState = rememberTimePickerState()
+
+    var taskToDelete by remember { mutableStateOf<Task?>(null) }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     LaunchedEffect(initialTaskIdToEdit) {
         if (initialTaskIdToEdit != -1L) {
@@ -170,6 +178,10 @@ fun TaskScreen(
                             Calendar.getInstance().apply { timeInMillis = it }
                         }
                         showDialog = true
+                    },
+                    onDelete = {
+                        taskToDelete = task
+                        showDeleteConfirmation = true
                     }
                 )
             }
@@ -230,11 +242,99 @@ fun TaskScreen(
                                     Calendar.getInstance().apply { timeInMillis = it }
                                 }
                                 showDialog = true
+                            },
+                            onDelete = {
+                                taskToDelete = task
+                                showDeleteConfirmation = true
                             }
                         )
                     }
                 }
             }
+        }
+
+        if (showDeleteConfirmation) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirmation = false },
+                title = { Text("Delete Task") },
+                text = { Text("Are you sure you want to delete this task?") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            taskToDelete?.let { viewModel.deleteTask(it) }
+                            showDeleteConfirmation = false
+                            taskToDelete = null
+                        }
+                    ) {
+                        Text("Delete", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirmation = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        if (showDatePicker) {
+            DatePickerDialog(
+                onDismissRequest = { showDatePicker = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val selectedDate = Calendar.getInstance().apply {
+                            timeInMillis = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
+                        }
+                        val current = selectedDateTime ?: Calendar.getInstance()
+                        selectedDateTime = Calendar.getInstance().apply {
+                            set(Calendar.YEAR, selectedDate.get(Calendar.YEAR))
+                            set(Calendar.MONTH, selectedDate.get(Calendar.MONTH))
+                            set(Calendar.DAY_OF_MONTH, selectedDate.get(Calendar.DAY_OF_MONTH))
+                            if (selectedDateTime != null) {
+                                set(Calendar.HOUR_OF_DAY, current.get(Calendar.HOUR_OF_DAY))
+                                set(Calendar.MINUTE, current.get(Calendar.MINUTE))
+                            } else {
+                                set(Calendar.HOUR_OF_DAY, 9)
+                                set(Calendar.MINUTE, 0)
+                            }
+                        }
+                        showDatePicker = false
+                        showTimePicker = true
+                    }) { Text("Next") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                }
+            ) {
+                DatePicker(state = datePickerState)
+            }
+        }
+
+        if (showTimePicker) {
+            AlertDialog(
+                onDismissRequest = { showTimePicker = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        selectedDateTime = (selectedDateTime ?: Calendar.getInstance()).apply {
+                            set(Calendar.HOUR_OF_DAY, timePickerState.hour)
+                            set(Calendar.MINUTE, timePickerState.minute)
+                        }
+                        showTimePicker = false
+                    }) { Text("OK") }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        // If canceled, we keep the date but don't set a specific time (or keep old time)
+                        showTimePicker = false
+                    }) { Text("No Time") }
+                },
+                title = { Text("Select Time") },
+                text = {
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        TimePicker(state = timePickerState)
+                    }
+                }
+            )
         }
 
         if (showDialog) {
@@ -316,14 +416,7 @@ fun TaskScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             TextButton(
-                                onClick = {
-                                    // In a real app, use a proper date/time picker
-                                    selectedDateTime = Calendar.getInstance().apply {
-                                        add(Calendar.DAY_OF_YEAR, 1)
-                                        set(Calendar.HOUR_OF_DAY, 9)
-                                        set(Calendar.MINUTE, 0)
-                                    }
-                                }
+                                onClick = { showDatePicker = true }
                             ) {
                                 Icon(Icons.Default.DateRange, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
@@ -337,6 +430,27 @@ fun TaskScreen(
                                 IconButton(onClick = { selectedDateTime = null }) {
                                     Icon(Icons.Default.Clear, contentDescription = "Clear Date")
                                 }
+                            }
+                        }
+
+                        if (editingTask != null) {
+                            val isTaskCompleted = editingTask?.isCompleted == true
+                            Button(
+                                onClick = {
+                                    editingTask?.let { viewModel.toggleTaskCompletion(it) }
+                                    showDialog = false
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isTaskCompleted) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+                                )
+                            ) {
+                                Icon(
+                                    if (isTaskCompleted) Icons.Default.Refresh else Icons.Default.Check,
+                                    contentDescription = null
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(if (isTaskCompleted) "Mark as Active" else "Mark as Completed")
                             }
                         }
 
@@ -378,7 +492,12 @@ fun TaskScreen(
 }
 
 @Composable
-fun TaskCard(task: Task, onToggleCompletion: () -> Unit, onClick: () -> Unit) {
+fun TaskCard(
+    task: Task, 
+    onToggleCompletion: () -> Unit, 
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
     val alpha by animateFloatAsState(if (task.isCompleted) 0.6f else 1f, label = "taskAlpha")
     
     Surface(
@@ -505,6 +624,15 @@ fun TaskCard(task: Task, onToggleCompletion: () -> Unit, onClick: () -> Unit) {
                     checked = task.isCompleted,
                     onCheckedChange = { onToggleCompletion() }
                 )
+            },
+            trailingContent = {
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Delete Task",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
             }
         )
     }
