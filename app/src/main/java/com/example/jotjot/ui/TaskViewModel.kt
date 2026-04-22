@@ -35,6 +35,9 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     private val _sortDirection = MutableStateFlow(SortDirection.DESCENDING)
     val sortDirection: StateFlow<SortDirection> = _sortDirection
 
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery
+
     val allTasks: StateFlow<List<Task>>
 
     init {
@@ -42,11 +45,20 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         val reminderManager = ReminderManager(application)
         repository = TaskRepository(taskDao, reminderManager)
         
-        allTasks = combine(repository.allTasks, _sortOrder, _sortDirection) { tasks, sortOrder, sortDirection ->
+        allTasks = combine(repository.allTasks, _sortOrder, _sortDirection, _searchQuery) { tasks, sortOrder, sortDirection, query ->
+            val filteredTasks = if (query.isBlank()) {
+                tasks
+            } else {
+                tasks.filter { 
+                    it.title.contains(query, ignoreCase = true) || 
+                    (it.notes?.contains(query, ignoreCase = true) ?: false)
+                }
+            }
+
             val sortedTasks = when (sortOrder) {
-                SortOrder.CREATION_DATE -> tasks.sortedBy { it.createdAt }
-                SortOrder.DUE_DATE -> tasks.sortedWith(compareBy<Task> { it.dueDate == null }.thenBy { it.dueDate })
-                SortOrder.PRIORITY -> tasks.sortedBy { it.priority }
+                SortOrder.CREATION_DATE -> filteredTasks.sortedBy { it.createdAt }
+                SortOrder.DUE_DATE -> filteredTasks.sortedWith(compareBy<Task> { it.dueDate == null }.thenBy { it.dueDate })
+                SortOrder.PRIORITY -> filteredTasks.sortedBy { it.priority }
             }
             
             if (sortDirection == SortDirection.DESCENDING) {
@@ -55,6 +67,10 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                 sortedTasks
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
     }
 
     fun setSortOrder(order: SortOrder) {
