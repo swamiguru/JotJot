@@ -34,9 +34,10 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.tooling.preview.Preview
+import com.example.jotjot.ui.theme.JotJotTheme
 import android.content.res.Configuration
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskScreen(
     viewModel: TaskViewModel = viewModel(),
@@ -45,7 +46,40 @@ fun TaskScreen(
     val tasks by viewModel.allTasks.collectAsState()
     val sortDirection by viewModel.sortDirection.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
-    
+    val sortOrder by viewModel.sortOrder.collectAsState()
+
+    TaskContent(
+        tasks = tasks,
+        sortDirection = sortDirection,
+        sortOrder = sortOrder,
+        searchQuery = searchQuery,
+        initialTaskIdToEdit = initialTaskIdToEdit,
+        onSearchQueryChange = viewModel::setSearchQuery,
+        onToggleSortDirection = viewModel::toggleSortDirection,
+        onSortOrderChange = viewModel::setSortOrder,
+        onToggleTaskCompletion = viewModel::toggleTaskCompletion,
+        onDeleteTask = viewModel::deleteTask,
+        onAddTask = viewModel::addTask,
+        onUpdateTask = viewModel::updateTask
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TaskContent(
+    tasks: List<Task>,
+    sortDirection: SortDirection,
+    sortOrder: SortOrder,
+    searchQuery: String,
+    initialTaskIdToEdit: Long = -1L,
+    onSearchQueryChange: (String) -> Unit,
+    onToggleSortDirection: () -> Unit,
+    onSortOrderChange: (SortOrder) -> Unit,
+    onToggleTaskCompletion: (Task) -> Unit,
+    onDeleteTask: (Task) -> Unit,
+    onAddTask: (String, String?, Long?, Priority, Recurrence) -> Unit,
+    onUpdateTask: (Task, String, String?, Long?, Priority, Recurrence) -> Unit
+) {
     val activeTasks = tasks.filter { !it.isCompleted }
     val completedTasks = tasks.filter { it.isCompleted }
     
@@ -72,7 +106,7 @@ fun TaskScreen(
         }
     }
 
-    LaunchedEffect(initialTaskIdToEdit) {
+    LaunchedEffect(initialTaskIdToEdit, tasks) {
         if (initialTaskIdToEdit != -1L) {
             val task = tasks.find { it.id == initialTaskIdToEdit }
             if (task != null) {
@@ -96,7 +130,7 @@ fun TaskScreen(
                     if (isSearchActive) {
                         TextField(
                             value = searchQuery,
-                            onValueChange = { viewModel.setSearchQuery(it) },
+                            onValueChange = { onSearchQueryChange(it) },
                             placeholder = { Text("Search tasks...") },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -122,14 +156,14 @@ fun TaskScreen(
                 actions = {
                     IconButton(onClick = { 
                         isSearchActive = !isSearchActive
-                        if (!isSearchActive) viewModel.setSearchQuery("")
+                        if (!isSearchActive) onSearchQueryChange("")
                     }) {
                         Icon(
                             imageVector = if (isSearchActive) Icons.Default.Close else Icons.Default.Search,
                             contentDescription = if (isSearchActive) "Close Search" else "Search"
                         )
                     }
-                    IconButton(onClick = { viewModel.toggleSortDirection() }) {
+                    IconButton(onClick = { onToggleSortDirection() }) {
                         Icon(
                             imageVector = if (sortDirection == SortDirection.ASCENDING) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                             contentDescription = "Toggle Sort Direction"
@@ -148,9 +182,12 @@ fun TaskScreen(
                                 DropdownMenuItem(
                                     text = { Text(order.name.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }) },
                                     onClick = {
-                                        viewModel.setSortOrder(order)
+                                        onSortOrderChange(order)
                                         showSortMenu = false
-                                    }
+                                    },
+                                    trailingIcon = if (order == sortOrder) {
+                                        { Icon(Icons.Default.Check, contentDescription = "Selected") }
+                                    } else null
                                 )
                             }
                         }
@@ -189,7 +226,7 @@ fun TaskScreen(
                 items(activeTasks, key = { it.id }) { task ->
                     TaskCard(
                         task = task,
-                        onToggleCompletion = { viewModel.toggleTaskCompletion(task) },
+                        onToggleCompletion = { onToggleTaskCompletion(task) },
                         onClick = {
                             editingTask = task
                             taskTitle = task.title
@@ -239,7 +276,7 @@ fun TaskScreen(
                         items(completedTasks, key = { it.id }) { task ->
                             TaskCard(
                                 task = task,
-                                onToggleCompletion = { viewModel.toggleTaskCompletion(task) },
+                                onToggleCompletion = { onToggleTaskCompletion(task) },
                                 onClick = {
                                     editingTask = task
                                     taskTitle = task.title
@@ -269,7 +306,7 @@ fun TaskScreen(
                 text = { Text("Are you sure you want to delete this task?") },
                 confirmButton = {
                     TextButton(onClick = {
-                        taskToDelete?.let { viewModel.deleteTask(it) }
+                        taskToDelete?.let { onDeleteTask(it) }
                         showDeleteConfirmation = false
                         taskToDelete = null
                     }) {
@@ -309,9 +346,11 @@ fun TaskScreen(
         }
 
         if (showTimePicker) {
+            val currentTime = Calendar.getInstance()
+            val hasTime = selectedDateTime?.get(Calendar.MILLISECOND) == 1
             val timePickerState = rememberTimePickerState(
-                initialHour = selectedDateTime?.get(Calendar.HOUR_OF_DAY) ?: 12,
-                initialMinute = selectedDateTime?.get(Calendar.MINUTE) ?: 0
+                initialHour = if (hasTime) selectedDateTime?.get(Calendar.HOUR_OF_DAY) ?: currentTime.get(Calendar.HOUR_OF_DAY) else currentTime.get(Calendar.HOUR_OF_DAY),
+                initialMinute = if (hasTime) selectedDateTime?.get(Calendar.MINUTE) ?: currentTime.get(Calendar.MINUTE) else currentTime.get(Calendar.MINUTE)
             )
             AlertDialog(
                 onDismissRequest = { showTimePicker = false },
@@ -390,59 +429,56 @@ fun TaskScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
-                                    Column(
-                                        modifier = Modifier.weight(1f),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Text("Title", style = MaterialTheme.typography.titleMedium)
-                                        OutlinedTextField(
-                                            value = taskTitle,
-                                            onValueChange = { taskTitle = it },
-                                            modifier = Modifier.fillMaxWidth(),
-                                            singleLine = true,
-                                            shape = MaterialTheme.shapes.large
-                                        )
-                                    }
-
-                                    Column(
-                                        modifier = Modifier.weight(1f),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Text("Notes (Optional)", style = MaterialTheme.typography.titleMedium)
-                                        OutlinedTextField(
-                                            value = taskNotes,
-                                            onValueChange = { taskNotes = it },
-                                            modifier = Modifier.fillMaxWidth(),
-                                            maxLines = 2,
-                                            shape = MaterialTheme.shapes.large
-                                        )
-                                    }
-                                }
-                            } else {
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text("Title", style = MaterialTheme.typography.titleMedium)
                                     OutlinedTextField(
                                         value = taskTitle,
                                         onValueChange = { taskTitle = it },
+                                        placeholder = { Text("Title") },
                                         modifier = Modifier.fillMaxWidth(),
                                         singleLine = true,
                                         shape = MaterialTheme.shapes.large
                                     )
-                                }
 
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text("Notes (Optional)", style = MaterialTheme.typography.titleMedium)
                                     OutlinedTextField(
                                         value = taskNotes,
                                         onValueChange = { taskNotes = it },
+                                        placeholder = { Text("Notes") },
                                         modifier = Modifier.fillMaxWidth(),
-                                        minLines = 2,
+                                        maxLines = 2,
                                         shape = MaterialTheme.shapes.large
                                     )
                                 }
+                            } else {
+                                OutlinedTextField(
+                                    value = taskTitle,
+                                    onValueChange = { taskTitle = it },
+                                    placeholder = { Text("Title") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                    shape = MaterialTheme.shapes.large
+                                )
+
+                                OutlinedTextField(
+                                    value = taskNotes,
+                                    onValueChange = { taskNotes = it },
+                                    placeholder = { Text("Notes") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    minLines = 2,
+                                    shape = MaterialTheme.shapes.large
+                                )
                             }
 
-                            Text("Priority", style = MaterialTheme.typography.titleMedium)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Text("Priority", style = MaterialTheme.typography.titleMedium)
+                            }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -473,7 +509,18 @@ fun TaskScreen(
                                 }
                             }
 
-                            Text("Repeat", style = MaterialTheme.typography.titleMedium)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Text("Repeat", style = MaterialTheme.typography.titleMedium)
+                            }
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -494,31 +541,35 @@ fun TaskScreen(
                                 }
                             }
 
-                            Text("Due Date", style = MaterialTheme.typography.titleMedium)
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { showDatePicker = true }
+                                    .padding(vertical = 4.dp)
                             ) {
-                                TextButton(
-                                    onClick = { showDatePicker = true },
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.DateRange, 
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(Modifier.width(8.dp))
+                                Icon(
+                                    imageVector = Icons.Default.DateRange,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "Due Date",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                selectedDateTime?.let {
+                                    val hasTime = it.get(Calendar.MILLISECOND) == 1
+                                    val pattern = if (hasTime) "MMM dd, HH:mm" else "MMM dd"
                                     Text(
-                                        text = selectedDateTime?.let {
-                                            val hasTime = it.get(Calendar.MILLISECOND) == 1
-                                            val pattern = if (hasTime) "MMM dd, HH:mm" else "MMM dd"
-                                            SimpleDateFormat(pattern, Locale.getDefault()).format(it.time)
-                                        } ?: "Set Due Date",
-                                        style = MaterialTheme.typography.bodyLarge
+                                        text = SimpleDateFormat(pattern, Locale.getDefault()).format(it.time),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.primary
                                     )
-                                }
-                                if (selectedDateTime != null) {
+
                                     IconButton(
                                         onClick = { selectedDateTime = null },
                                         modifier = Modifier.size(32.dp)
@@ -536,7 +587,7 @@ fun TaskScreen(
                                 val isTaskCompleted = editingTask?.isCompleted == true
                                 Button(
                                     onClick = {
-                                        editingTask?.let { viewModel.toggleTaskCompletion(it) }
+                                        editingTask?.let { onToggleTaskCompletion(it) }
                                         showDialog = false
                                     },
                                     modifier = Modifier.fillMaxWidth(),
@@ -569,9 +620,9 @@ fun TaskScreen(
                                         if (taskTitle.isNotBlank()) {
                                             val currentTask = editingTask
                                             if (currentTask == null) {
-                                                viewModel.addTask(taskTitle, taskNotes.ifBlank { null }, selectedDateTime?.timeInMillis, taskPriority, taskRecurrence)
+                                                onAddTask(taskTitle, taskNotes.ifBlank { null }, selectedDateTime?.timeInMillis, taskPriority, taskRecurrence)
                                             } else {
-                                                viewModel.updateTask(currentTask, taskTitle, taskNotes.ifBlank { null }, selectedDateTime?.timeInMillis, taskPriority, taskRecurrence)
+                                                onUpdateTask(currentTask, taskTitle, taskNotes.ifBlank { null }, selectedDateTime?.timeInMillis, taskPriority, taskRecurrence)
                                             }
                                             taskTitle = ""
                                             taskNotes = ""
@@ -614,7 +665,7 @@ fun TaskCard(
             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f) 
         else 
             MaterialTheme.colorScheme.surfaceVariant,
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialTheme.shapes.large,
         tonalElevation = if (task.isCompleted) 0.dp else 1.dp
     ) {
         ListItem(
@@ -728,9 +779,9 @@ fun TaskCard(
                 }
             },
             leadingContent = {
-                Checkbox(
-                    checked = task.isCompleted,
-                    onCheckedChange = { onToggleCompletion() }
+                RadioButton(
+                    selected = task.isCompleted,
+                    onClick = { onToggleCompletion() }
                 )
             },
             trailingContent = {
@@ -742,6 +793,30 @@ fun TaskCard(
                     )
                 }
             }
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun TaskScreenPreview() {
+    JotJotTheme {
+        TaskContent(
+            tasks = listOf(
+                Task(id = 1, title = "Finish Project", notes = "Due by EOD", priority = Priority.HIGH),
+                Task(id = 2, title = "Grocery shopping", notes = "Milk, Eggs, Bread", priority = Priority.MEDIUM),
+                Task(id = 3, title = "Call mom", priority = Priority.LOW, isCompleted = true)
+            ),
+            sortDirection = SortDirection.DESCENDING,
+            sortOrder = SortOrder.CREATION_DATE,
+            searchQuery = "",
+            onSearchQueryChange = {},
+            onToggleSortDirection = {},
+            onSortOrderChange = {},
+            onToggleTaskCompletion = {},
+            onDeleteTask = {},
+            onAddTask = { _, _, _, _, _ -> },
+            onUpdateTask = { _, _, _, _, _, _ -> }
         )
     }
 }
