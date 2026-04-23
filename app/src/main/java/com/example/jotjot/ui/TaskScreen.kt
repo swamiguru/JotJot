@@ -17,8 +17,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.jotjot.data.Task
@@ -178,7 +176,7 @@ fun TaskContent(
                             expanded = showSortMenu,
                             onDismissRequest = { showSortMenu = false }
                         ) {
-                            SortOrder.values().forEach { order ->
+                            SortOrder.entries.forEach { order ->
                                 DropdownMenuItem(
                                     text = { Text(order.name.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }) },
                                     onClick = {
@@ -483,7 +481,7 @@ fun TaskContent(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Priority.values().forEach { priority ->
+                                Priority.entries.forEach { priority ->
                                     FilterChip(
                                         selected = taskPriority == priority,
                                         onClick = { taskPriority = priority },
@@ -527,7 +525,7 @@ fun TaskContent(
                                     .horizontalScroll(rememberScrollState()),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Recurrence.values().forEach { recurrence ->
+                                Recurrence.entries.forEach { recurrence ->
                                     FilterChip(
                                         selected = taskRecurrence == recurrence,
                                         onClick = { taskRecurrence = recurrence },
