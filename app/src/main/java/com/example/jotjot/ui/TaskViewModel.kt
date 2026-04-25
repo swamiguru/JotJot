@@ -12,6 +12,8 @@ import kotlinx.coroutines.launch
 
 import com.example.jotjot.data.Priority
 import com.example.jotjot.data.Recurrence
+import com.example.jotjot.widget.TaskWidget
+import androidx.glance.appwidget.updateAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.util.Calendar
 import kotlinx.coroutines.flow.SharingStarted
@@ -88,12 +90,14 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     fun addTask(title: String, notes: String? = null, dueDate: Long? = null, priority: Priority = Priority.MEDIUM, recurrence: Recurrence = Recurrence.NONE) {
         viewModelScope.launch {
             repository.insert(Task(title = title, notes = notes, dueDate = dueDate, priority = priority, recurrence = recurrence))
+            TaskWidget().updateAll(getApplication())
         }
     }
 
     fun updateTask(task: Task, newTitle: String, newNotes: String?, newDueDate: Long?, newPriority: Priority, newRecurrence: Recurrence) {
         viewModelScope.launch {
             repository.update(task.copy(title = newTitle, notes = newNotes, dueDate = newDueDate, priority = newPriority, recurrence = newRecurrence))
+            TaskWidget().updateAll(getApplication())
         }
     }
 
@@ -106,6 +110,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                 repository.insert(task.copy(id = 0, isCompleted = false, dueDate = nextDueDate, createdAt = System.currentTimeMillis()))
             }
             repository.update(task.copy(isCompleted = targetStatus))
+            TaskWidget().updateAll(getApplication())
         }
     }
 
@@ -124,6 +129,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteTask(task: Task) {
         viewModelScope.launch {
             repository.delete(task)
+            TaskWidget().updateAll(getApplication())
         }
     }
 }

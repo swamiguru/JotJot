@@ -22,6 +22,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         
         val taskId = intent.getLongExtra(NotificationReceiver.EXTRA_TASK_ID, -1L)
+        val showAddTask = intent.getBooleanExtra(EXTRA_OPEN_ADD_DIALOG, false)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -29,8 +30,15 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             JotJotTheme {
-                TaskScreen(initialTaskIdToEdit = taskId)
+                TaskScreen(
+                    initialTaskIdToEdit = taskId,
+                    showAddTaskDialog = showAddTask
+                )
             }
         }
+    }
+
+    companion object {
+        const val EXTRA_OPEN_ADD_DIALOG = "open_add_dialog"
     }
 }

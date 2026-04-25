@@ -42,7 +42,8 @@ import android.content.res.Configuration
 @Composable
 fun TaskScreen(
     viewModel: TaskViewModel = viewModel(),
-    initialTaskIdToEdit: Long = -1L
+    initialTaskIdToEdit: Long = -1L,
+    showAddTaskDialog: Boolean = false
 ) {
     val tasks by viewModel.allTasks.collectAsState()
     val sortDirection by viewModel.sortDirection.collectAsState()
@@ -55,6 +56,7 @@ fun TaskScreen(
         sortOrder = sortOrder,
         searchQuery = searchQuery,
         initialTaskIdToEdit = initialTaskIdToEdit,
+        showAddTaskDialog = showAddTaskDialog,
         onSearchQueryChange = viewModel::setSearchQuery,
         onToggleSortDirection = viewModel::toggleSortDirection,
         onSortOrderChange = viewModel::setSortOrder,
@@ -73,6 +75,7 @@ fun TaskContent(
     sortOrder: SortOrder,
     searchQuery: String,
     initialTaskIdToEdit: Long = -1L,
+    showAddTaskDialog: Boolean = false,
     onSearchQueryChange: (String) -> Unit,
     onToggleSortDirection: () -> Unit,
     onSortOrderChange: (SortOrder) -> Unit,
@@ -121,6 +124,18 @@ fun TaskContent(
                 }
                 showDialog = true
             }
+        }
+    }
+
+    LaunchedEffect(showAddTaskDialog) {
+        if (showAddTaskDialog) {
+            editingTask = null
+            taskTitle = ""
+            taskNotes = ""
+            taskPriority = Priority.MEDIUM
+            taskRecurrence = Recurrence.NONE
+            selectedDateTime = null
+            showDialog = true
         }
     }
 
