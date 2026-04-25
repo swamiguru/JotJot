@@ -97,14 +97,15 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun toggleTaskCompletion(task: Task) {
+    fun toggleTaskCompletion(task: Task, isCompleted: Boolean? = null) {
         viewModelScope.launch {
-            if (!task.isCompleted && task.recurrence != Recurrence.NONE && task.dueDate != null) {
+            val targetStatus = isCompleted ?: !task.isCompleted
+            if (targetStatus && !task.isCompleted && task.recurrence != Recurrence.NONE && task.dueDate != null) {
                 // If a recurring task is completed, create the next instance
                 val nextDueDate = calculateNextDueDate(task.dueDate, task.recurrence)
                 repository.insert(task.copy(id = 0, isCompleted = false, dueDate = nextDueDate, createdAt = System.currentTimeMillis()))
             }
-            repository.update(task.copy(isCompleted = !task.isCompleted))
+            repository.update(task.copy(isCompleted = targetStatus))
         }
     }
 

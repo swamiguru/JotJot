@@ -1,6 +1,7 @@
 package com.example.jotjot.ui
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,11 +21,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.jotjot.data.Task
-import java.text.SimpleDateFormat
-import java.util.*
-
 import com.example.jotjot.data.Priority
 import com.example.jotjot.data.Recurrence
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlinx.coroutines.launch
+
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.focus.FocusRequester
@@ -55,14 +58,14 @@ fun TaskScreen(
         onSearchQueryChange = viewModel::setSearchQuery,
         onToggleSortDirection = viewModel::toggleSortDirection,
         onSortOrderChange = viewModel::setSortOrder,
-        onToggleTaskCompletion = viewModel::toggleTaskCompletion,
+        onToggleTaskCompletion = { task, status -> viewModel.toggleTaskCompletion(task, status) },
         onDeleteTask = viewModel::deleteTask,
         onAddTask = viewModel::addTask,
         onUpdateTask = viewModel::updateTask
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun TaskContent(
     tasks: List<Task>,
@@ -73,13 +76,16 @@ fun TaskContent(
     onSearchQueryChange: (String) -> Unit,
     onToggleSortDirection: () -> Unit,
     onSortOrderChange: (SortOrder) -> Unit,
-    onToggleTaskCompletion: (Task) -> Unit,
+    onToggleTaskCompletion: (Task, Boolean?) -> Unit,
     onDeleteTask: (Task) -> Unit,
     onAddTask: (String, String?, Long?, Priority, Recurrence) -> Unit,
     onUpdateTask: (Task, String, String?, Long?, Priority, Recurrence) -> Unit
 ) {
     val activeTasks = tasks.filter { !it.isCompleted }
     val completedTasks = tasks.filter { it.isCompleted }
+    
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     
     var showDialog by remember { mutableStateOf(false) }
     var isSearchActive by remember { mutableStateOf(false) }
@@ -94,9 +100,6 @@ fun TaskContent(
     
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
-
-    var taskToDelete by remember { mutableStateOf<Task?>(null) }
-    var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     LaunchedEffect(isSearchActive) {
         if (isSearchActive) {
@@ -122,6 +125,7 @@ fun TaskContent(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -147,9 +151,9 @@ fun TaskContent(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                    titleContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 ),
                 actions = {
                     IconButton(onClick = { 
@@ -221,102 +225,171 @@ fun TaskContent(
                     }
                 }
             } else {
+                if (activeTasks.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "Active Tasks",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+                        )
+                    }
+                }
                 items(activeTasks, key = { it.id }) { task ->
-                    TaskCard(
-                        task = task,
-                        onToggleCompletion = { onToggleTaskCompletion(task) },
-                        onClick = {
-                            editingTask = task
-                            taskTitle = task.title
-                            taskNotes = task.notes ?: ""
-                            taskPriority = task.priority
-                            taskRecurrence = task.recurrence
-                            selectedDateTime = task.dueDate?.let {
-                                Calendar.getInstance().apply { timeInMillis = it }
+                    val dismissState = rememberSwipeToDismissBoxState(
+                        confirmValueChange = {
+                            when (it) {
+                                SwipeToDismissBoxValue.StartToEnd -> {
+                                            onToggleTaskCompletion(task, true)
+                                            scope.launch {
+                                                val result = snackbarHostState.showSnackbar(
+                                                    message = "Task completed",
+                                                    actionLabel = "UNDO",
+                                                    duration = SnackbarDuration.Long
+                                                )
+                                                if (result == SnackbarResult.ActionPerformed) {
+                                                    onToggleTaskCompletion(task, false)
+                                                }
+                                            }
+                                    true
+                                }
+                                SwipeToDismissBoxValue.EndToStart -> {
+                                            onDeleteTask(task)
+                                            scope.launch {
+                                                val result = snackbarHostState.showSnackbar(
+                                                    message = "Task deleted",
+                                                    actionLabel = "UNDO",
+                                                    duration = SnackbarDuration.Long
+                                                )
+                                                if (result == SnackbarResult.ActionPerformed) {
+                                                    onAddTask(task.title, task.notes, task.dueDate, task.priority, task.recurrence)
+                                                }
+                                            }
+                                    true
+                                }
+                                else -> false
                             }
-                            showDialog = true
-                        },
-                        onDelete = {
-                            taskToDelete = task
-                            showDeleteConfirmation = true
                         }
                     )
+
+                    SwipeToDismissBox(
+                        state = dismissState,
+                        backgroundContent = { SwipeBackground(dismissState) },
+                        modifier = Modifier.animateItemPlacement()
+                    ) {
+                        TaskCard(
+                            task = task,
+                            onToggleCompletion = { onToggleTaskCompletion(task, null) },
+                            onClick = {
+                                editingTask = task
+                                taskTitle = task.title
+                                taskNotes = task.notes ?: ""
+                                taskPriority = task.priority
+                                taskRecurrence = task.recurrence
+                                selectedDateTime = task.dueDate?.let {
+                                    Calendar.getInstance().apply { timeInMillis = it }
+                                }
+                                showDialog = true
+                            }
+                        )
+                    }
                 }
                 
                 if (completedTasks.isNotEmpty()) {
                     item {
                         Spacer(modifier = Modifier.height(16.dp))
-                        Surface(
-                            onClick = { isCompletedExpanded = !isCompletedExpanded },
-                            modifier = Modifier.fillMaxWidth(),
-                            color = Color.Transparent
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { isCompletedExpanded = !isCompletedExpanded }
+                                .padding(horizontal = 4.dp, vertical = 8.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(vertical = 8.dp)
+                            Text(
+                                text = "Completed",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Badge(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                             ) {
-                                Text(
-                                    text = "Completed (${completedTasks.size})",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Icon(
-                                    imageVector = if (isCompletedExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
+                                Text(completedTasks.size.toString())
                             }
+                            Spacer(Modifier.width(8.dp))
+                            Icon(
+                                imageVector = if (isCompletedExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.secondary
+                            )
                         }
                     }
                     
                     if (isCompletedExpanded) {
                         items(completedTasks, key = { it.id }) { task ->
-                            TaskCard(
-                                task = task,
-                                onToggleCompletion = { onToggleTaskCompletion(task) },
-                                onClick = {
-                                    editingTask = task
-                                    taskTitle = task.title
-                                    taskNotes = task.notes ?: ""
-                                    taskPriority = task.priority
-                                    taskRecurrence = task.recurrence
-                                    selectedDateTime = task.dueDate?.let {
-                                        Calendar.getInstance().apply { timeInMillis = it }
+                            val dismissState = rememberSwipeToDismissBoxState(
+                                confirmValueChange = {
+                                    when (it) {
+                                        SwipeToDismissBoxValue.StartToEnd -> {
+                                            onToggleTaskCompletion(task, false)
+                                            scope.launch {
+                                                val result = snackbarHostState.showSnackbar(
+                                                    message = "Task marked as active",
+                                                    actionLabel = "UNDO",
+                                                    duration = SnackbarDuration.Long
+                                                )
+                                                if (result == SnackbarResult.ActionPerformed) {
+                                                    onToggleTaskCompletion(task, true)
+                                                }
+                                            }
+                                            true
+                                        }
+                                        SwipeToDismissBoxValue.EndToStart -> {
+                                            onDeleteTask(task)
+                                            scope.launch {
+                                                val result = snackbarHostState.showSnackbar(
+                                                    message = "Task deleted",
+                                                    actionLabel = "UNDO",
+                                                    duration = SnackbarDuration.Short
+                                                )
+                                                if (result == SnackbarResult.ActionPerformed) {
+                                                    onAddTask(task.title, task.notes, task.dueDate, task.priority, task.recurrence)
+                                                }
+                                            }
+                                            true
+                                        }
+                                        else -> false
                                     }
-                                    showDialog = true
-                                },
-                                onDelete = {
-                                    taskToDelete = task
-                                    showDeleteConfirmation = true
                                 }
                             )
+
+                            SwipeToDismissBox(
+                                state = dismissState,
+                                backgroundContent = { SwipeBackground(dismissState) },
+                                modifier = Modifier.animateItemPlacement()
+                            ) {
+                                TaskCard(
+                                    task = task,
+                                    onToggleCompletion = { onToggleTaskCompletion(task, null) },
+                                    onClick = {
+                                        editingTask = task
+                                        taskTitle = task.title
+                                        taskNotes = task.notes ?: ""
+                                        taskPriority = task.priority
+                                        taskRecurrence = task.recurrence
+                                        selectedDateTime = task.dueDate?.let {
+                                            Calendar.getInstance().apply { timeInMillis = it }
+                                        }
+                                        showDialog = true
+                                    }
+                                )
+                            }
                         }
                     }
                 }
             }
-        }
-
-        if (showDeleteConfirmation) {
-            AlertDialog(
-                onDismissRequest = { showDeleteConfirmation = false },
-                title = { Text("Delete Task") },
-                text = { Text("Are you sure you want to delete this task?") },
-                confirmButton = {
-                    TextButton(onClick = {
-                        taskToDelete?.let { onDeleteTask(it) }
-                        showDeleteConfirmation = false
-                        taskToDelete = null
-                    }) {
-                        Text("Delete", color = MaterialTheme.colorScheme.error)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDeleteConfirmation = false }) {
-                        Text("Cancel")
-                    }
-                }
-            )
         }
 
         if (showDatePicker) {
@@ -417,10 +490,6 @@ fun TaskContent(
                                 .padding(24.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            Text(
-                                text = if (editingTask == null) "New Task" else "Edit Task",
-                                style = MaterialTheme.typography.headlineMedium
-                            )
 
                             if (isLandscape) {
                                 Row(
@@ -430,7 +499,7 @@ fun TaskContent(
                                     OutlinedTextField(
                                         value = taskTitle,
                                         onValueChange = { taskTitle = it },
-                                        placeholder = { Text("Title") },
+                                        placeholder = { Text("What would you like to do?") },
                                         modifier = Modifier.fillMaxWidth(),
                                         singleLine = true,
                                         shape = MaterialTheme.shapes.large
@@ -439,7 +508,7 @@ fun TaskContent(
                                     OutlinedTextField(
                                         value = taskNotes,
                                         onValueChange = { taskNotes = it },
-                                        placeholder = { Text("Notes") },
+                                        placeholder = { Text("Description") },
                                         modifier = Modifier.fillMaxWidth(),
                                         maxLines = 2,
                                         shape = MaterialTheme.shapes.large
@@ -449,7 +518,7 @@ fun TaskContent(
                                 OutlinedTextField(
                                     value = taskTitle,
                                     onValueChange = { taskTitle = it },
-                                    placeholder = { Text("Title") },
+                                    placeholder = { Text("What would you like to do?") },
                                     modifier = Modifier.fillMaxWidth(),
                                     singleLine = true,
                                     shape = MaterialTheme.shapes.large
@@ -458,7 +527,7 @@ fun TaskContent(
                                 OutlinedTextField(
                                     value = taskNotes,
                                     onValueChange = { taskNotes = it },
-                                    placeholder = { Text("Notes") },
+                                    placeholder = { Text("Description") },
                                     modifier = Modifier.fillMaxWidth(),
                                     minLines = 2,
                                     shape = MaterialTheme.shapes.large
@@ -470,7 +539,7 @@ fun TaskContent(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Warning,
+                                    imageVector = Icons.Default.Notifications,
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp),
                                     tint = MaterialTheme.colorScheme.primary
@@ -585,7 +654,7 @@ fun TaskContent(
                                 val isTaskCompleted = editingTask?.isCompleted == true
                                 Button(
                                     onClick = {
-                                        editingTask?.let { onToggleTaskCompletion(it) }
+                                        editingTask?.let { onToggleTaskCompletion(it, null) }
                                         showDialog = false
                                     },
                                     modifier = Modifier.fillMaxWidth(),
@@ -645,12 +714,49 @@ fun TaskContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SwipeBackground(dismissState: SwipeToDismissBoxState) {
+    val color = when (dismissState.dismissDirection) {
+        SwipeToDismissBoxValue.StartToEnd -> Color(0xFF4CAF50) // Green for complete
+        SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.error // Red for delete
+        else -> Color.Transparent
+    }
+    val alignment = when (dismissState.dismissDirection) {
+        SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+        SwipeToDismissBoxValue.EndToStart -> Alignment.CenterEnd
+        else -> Alignment.Center
+    }
+    val icon = when (dismissState.dismissDirection) {
+        SwipeToDismissBoxValue.StartToEnd -> Icons.Default.Check
+        SwipeToDismissBoxValue.EndToStart -> Icons.Default.Delete
+        else -> Icons.Default.Delete
+    }
+    val scale by animateFloatAsState(
+        if (dismissState.targetValue == SwipeToDismissBoxValue.Settled) 0.75f else 1f, label = "iconScale"
+    )
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(color, shape = MaterialTheme.shapes.extraLarge)
+            .padding(horizontal = 20.dp),
+        contentAlignment = alignment
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(24.dp).alpha(scale),
+            tint = Color.White
+        )
+    }
+}
+
 @Composable
 fun TaskCard(
     task: Task, 
     onToggleCompletion: () -> Unit, 
-    onClick: () -> Unit,
-    onDelete: () -> Unit
+    onClick: () -> Unit
 ) {
     val alpha by animateFloatAsState(if (task.isCompleted) 0.6f else 1f, label = "taskAlpha")
     
@@ -660,30 +766,36 @@ fun TaskCard(
             .alpha(alpha)
             .clickable { onClick() },
         color = if (task.isCompleted) 
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f) 
+            MaterialTheme.colorScheme.surface
         else 
-            MaterialTheme.colorScheme.surfaceVariant,
+            MaterialTheme.colorScheme.surface,
         shape = MaterialTheme.shapes.large,
-        tonalElevation = if (task.isCompleted) 0.dp else 1.dp
+        tonalElevation = if (task.isCompleted) 0.dp else 1.dp,
+        shadowElevation = if (task.isCompleted) 0.dp else 1.dp,
+        border = if (task.isCompleted) null else androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         ListItem(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             colors = ListItemDefaults.colors(
                 containerColor = Color.Transparent
             ),
             headlineContent = { 
                 Text(
                     task.title,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
                     modifier = Modifier.fillMaxWidth()
                 )
             },
             supportingContent = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(top = 4.dp)
+                ) {
                     if (!task.notes.isNullOrBlank()) {
                         Text(
                             text = task.notes,
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 2
                         )
@@ -691,8 +803,8 @@ fun TaskCard(
                     
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.padding(top = 2.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         // Priority Badge
                         if (!task.isCompleted) {
@@ -702,12 +814,12 @@ fun TaskCard(
                                     Priority.MEDIUM -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.8f)
                                     Priority.LOW -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
                                 },
-                                shape = MaterialTheme.shapes.extraSmall
+                                shape = CircleShape
                             ) {
                                 Text(
                                     text = task.priority.name,
                                     style = MaterialTheme.typography.labelSmall,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                     color = when (task.priority) {
                                         Priority.HIGH -> MaterialTheme.colorScheme.onErrorContainer
                                         Priority.MEDIUM -> MaterialTheme.colorScheme.onSecondaryContainer
@@ -723,19 +835,36 @@ fun TaskCard(
                             val hasTime = cal.get(Calendar.MILLISECOND) == 1
                             val pattern = if (hasTime) "MMM dd, HH:mm" else "MMM dd"
                             val sdf = SimpleDateFormat(pattern, Locale.getDefault())
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.DateRange,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(14.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(Modifier.width(4.dp))
-                                Text(
-                                    text = sdf.format(Date(dueDate)),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                shape = CircleShape,
+                                border = if (dueDate < System.currentTimeMillis() && !task.isCompleted) 
+                                    androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error) 
+                                else null
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.DateRange,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = if (dueDate < System.currentTimeMillis() && !task.isCompleted)
+                                            MaterialTheme.colorScheme.error
+                                        else
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(
+                                        text = sdf.format(Date(dueDate)),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (dueDate < System.currentTimeMillis() && !task.isCompleted)
+                                            MaterialTheme.colorScheme.error
+                                        else
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
 
@@ -746,11 +875,11 @@ fun TaskCard(
                                     MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                                 else 
                                     MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-                                shape = MaterialTheme.shapes.extraSmall
+                                shape = CircleShape
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Refresh,
@@ -781,15 +910,6 @@ fun TaskCard(
                     selected = task.isCompleted,
                     onClick = { onToggleCompletion() }
                 )
-            },
-            trailingContent = {
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = "Delete Task",
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
             }
         )
     }
@@ -811,7 +931,7 @@ fun TaskScreenPreview() {
             onSearchQueryChange = {},
             onToggleSortDirection = {},
             onSortOrderChange = {},
-            onToggleTaskCompletion = {},
+            onToggleTaskCompletion = { _, _ -> },
             onDeleteTask = {},
             onAddTask = { _, _, _, _, _ -> },
             onUpdateTask = { _, _, _, _, _, _ -> }
