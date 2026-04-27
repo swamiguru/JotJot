@@ -4,17 +4,7 @@
             "outputFile": "com.example.jotjot.app-mergeDebugResources-57:/values-v23/values-v23.xml",
             "map": [
                 {
-                    "source": "/Users/masterswami/.gradle/caches/9.4.1/transforms/8c73cf01fd4ce6b6ca7f1985a2f1e775/transformed/work-runtime-2.7.1/res/values-v23/values-v23.xml",
-                    "from": {
-                        "startLines": "2,3",
-                        "startColumns": "4,4",
-                        "startOffsets": "55,121",
-                        "endColumns": "65,62",
-                        "endOffsets": "116,179"
-                    }
-                },
-                {
-                    "source": "/Users/masterswami/.gradle/caches/9.4.1/transforms/1d287c1e2511041575b60fa17d381f41/transformed/glance-appwidget-1.1.1/res/values-v23/values-v23.xml",
+                    "source": "/Users/masterswami/.gradle/caches/9.4.1/transforms/1fb0245d5274a3b49800430e1e557eb7/transformed/glance-appwidget-1.1.1/res/values-v23/values-v23.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",
@@ -28,6 +18,16 @@
                         "startOffsets": "184",
                         "endColumns": "55",
                         "endOffsets": "235"
+                    }
+                },
+                {
+                    "source": "/Users/masterswami/.gradle/caches/9.4.1/transforms/8fe478964eca23424bb9dcebfc3eb838/transformed/work-runtime-2.7.1/res/values-v23/values-v23.xml",
+                    "from": {
+                        "startLines": "2,3",
+                        "startColumns": "4,4",
+                        "startOffsets": "55,121",
+                        "endColumns": "65,62",
+                        "endOffsets": "116,179"
                     }
                 }
             ]

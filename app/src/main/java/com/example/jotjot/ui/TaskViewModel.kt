@@ -46,7 +46,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         val taskDao = AppDatabase.getDatabase(application).taskDao()
         val reminderManager = ReminderManager(application)
         repository = TaskRepository(taskDao, reminderManager)
-        
+
         allTasks = combine(repository.allTasks, _sortOrder, _sortDirection, _searchQuery) { tasks, sortOrder, sortDirection, query ->
             val filteredTasks = if (query.isBlank()) {
                 tasks
