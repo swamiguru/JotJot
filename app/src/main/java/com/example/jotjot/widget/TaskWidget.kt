@@ -60,10 +60,11 @@ class TaskWidget : GlanceAppWidget() {
             modifier = GlanceModifier
                 .fillMaxSize()
                 .background(GlanceTheme.colors.surface)
-                .padding(12.dp)
+                .cornerRadius(28.dp)
+                .padding(16.dp)
         ) {
             Row(
-                modifier = GlanceModifier.fillMaxWidth().padding(bottom = 8.dp),
+                modifier = GlanceModifier.fillMaxWidth().padding(bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalAlignment = Alignment.Horizontal.Start
             ) {
@@ -72,7 +73,7 @@ class TaskWidget : GlanceAppWidget() {
                     style = TextStyle(
                         color = GlanceTheme.colors.primary,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
+                        fontSize = 22.sp
                     ),
                     modifier = GlanceModifier.defaultWeight().clickable(actionStartActivity(mainIntent))
                 )
@@ -81,13 +82,13 @@ class TaskWidget : GlanceAppWidget() {
                     text = "+ New",
                     style = TextStyle(
                         color = GlanceTheme.colors.onPrimaryContainer,
-                        fontWeight = FontWeight.Medium,
+                        fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
                     ),
                     modifier = GlanceModifier
                         .background(GlanceTheme.colors.primaryContainer)
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                        .cornerRadius(8.dp)
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .cornerRadius(16.dp)
                         .clickable(actionStartActivity(addIntent))
                 )
             }
@@ -140,8 +141,8 @@ class TaskWidget : GlanceAppWidget() {
                 .fillMaxWidth()
                 .padding(vertical = 4.dp)
                 .background(GlanceTheme.colors.secondaryContainer)
-                .cornerRadius(12.dp)
-                .padding(12.dp)
+                .cornerRadius(24.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
                 .clickable(actionStartActivity(taskIntent)),
             verticalAlignment = Alignment.CenterVertically
         ) {

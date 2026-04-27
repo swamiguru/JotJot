@@ -22,11 +22,9 @@ fun SplashScreen() {
     ) {
         Text(
             text = "JotJot",
-            style = MaterialTheme.typography.displayLarge.copy(
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                fontSize = 64.sp
-            )
+            style = MaterialTheme.typography.displayLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold
         )
     }
 }

@@ -1,6 +1,7 @@
 package com.example.jotjot.ui
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,7 +15,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -35,6 +38,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.jotjot.ui.theme.JotJotTheme
 import android.content.res.Configuration
@@ -84,11 +89,12 @@ fun TaskContent(
     onAddTask: (String, String?, Long?, Priority, Recurrence) -> Unit,
     onUpdateTask: (Task, String, String?, Long?, Priority, Recurrence) -> Unit
 ) {
-    val activeTasks = tasks.filter { !it.isCompleted }
-    val completedTasks = tasks.filter { it.isCompleted }
+    val activeTasks = remember(tasks) { tasks.filter { !it.isCompleted } }
+    val completedTasks = remember(tasks) { tasks.filter { it.isCompleted } }
     
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
     
     var showDialog by remember { mutableStateOf(false) }
     var isSearchActive by remember { mutableStateOf(false) }
@@ -144,29 +150,43 @@ fun TaskContent(
         topBar = {
             TopAppBar(
                 title = {
-                    if (isSearchActive) {
-                        TextField(
-                            value = searchQuery,
-                            onValueChange = { onSearchQueryChange(it) },
-                            placeholder = { Text("Search tasks...") },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(focusRequester),
-                            singleLine = true,
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                disabledContainerColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent
+                    AnimatedContent(
+                        targetState = isSearchActive,
+                        transitionSpec = {
+                            (fadeIn(animationSpec = tween(300, delayMillis = 150)) + 
+                             scaleIn(initialScale = 0.92f, animationSpec = tween(300, delayMillis = 150)))
+                                .togetherWith(fadeOut(animationSpec = tween(150)))
+                        },
+                        label = "searchTransition"
+                    ) { active ->
+                        if (active) {
+                            TextField(
+                                value = searchQuery,
+                                onValueChange = { onSearchQueryChange(it) },
+                                placeholder = { Text("Search tasks...") },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(focusRequester),
+                                singleLine = true,
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    disabledContainerColor = Color.Transparent,
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent
+                                )
                             )
-                        )
-                    } else {
-                        Text("JotJot", fontWeight = FontWeight.Bold)
+                        } else {
+                            Text(
+                                text = "JotJot",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                     actionIconContentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 ),
@@ -242,12 +262,19 @@ fun TaskContent(
             } else {
                 if (activeTasks.isNotEmpty()) {
                     item {
-                        Text(
-                            text = "Active Tasks",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
-                        )
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = CircleShape,
+                            modifier = Modifier.padding(vertical = 12.dp)
+                        ) {
+                            Text(
+                                text = "Active Tasks",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                            )
+                        }
                     }
                 }
                 items(activeTasks, key = { it.id }) { task ->
@@ -255,12 +282,13 @@ fun TaskContent(
                         confirmValueChange = {
                             when (it) {
                                 SwipeToDismissBoxValue.StartToEnd -> {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             onToggleTaskCompletion(task, true)
                                             scope.launch {
                                                 val result = snackbarHostState.showSnackbar(
                                                     message = "Task completed",
                                                     actionLabel = "UNDO",
-                                                    duration = SnackbarDuration.Long
+                                                    duration = SnackbarDuration.Short
                                                 )
                                                 if (result == SnackbarResult.ActionPerformed) {
                                                     onToggleTaskCompletion(task, false)
@@ -269,12 +297,13 @@ fun TaskContent(
                                     true
                                 }
                                 SwipeToDismissBoxValue.EndToStart -> {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             onDeleteTask(task)
                                             scope.launch {
                                                 val result = snackbarHostState.showSnackbar(
                                                     message = "Task deleted",
                                                     actionLabel = "UNDO",
-                                                    duration = SnackbarDuration.Long
+                                                    duration = SnackbarDuration.Short
                                                 )
                                                 if (result == SnackbarResult.ActionPerformed) {
                                                     onAddTask(task.title, task.notes, task.dueDate, task.priority, task.recurrence)
@@ -290,11 +319,26 @@ fun TaskContent(
                     SwipeToDismissBox(
                         state = dismissState,
                         backgroundContent = { SwipeBackground(dismissState) },
-                        modifier = Modifier.animateItemPlacement()
+                        modifier = Modifier.animateItemPlacement(
+                            animationSpec = tween(durationMillis = 600)
+                        )
                     ) {
                         TaskCard(
                             task = task,
-                            onToggleCompletion = { onToggleTaskCompletion(task, null) },
+                            onToggleCompletion = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onToggleTaskCompletion(task, true)
+                                scope.launch {
+                                    val result = snackbarHostState.showSnackbar(
+                                        message = "Task completed",
+                                        actionLabel = "UNDO",
+                                        duration = SnackbarDuration.Short
+                                    )
+                                    if (result == SnackbarResult.ActionPerformed) {
+                                        onToggleTaskCompletion(task, false)
+                                    }
+                                }
+                            },
                             onClick = {
                                 editingTask = task
                                 taskTitle = task.title
@@ -312,33 +356,45 @@ fun TaskContent(
                 
                 if (completedTasks.isNotEmpty()) {
                     item {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
+                        Spacer(modifier = Modifier.height(32.dp))
+                        Surface(
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                            shape = CircleShape,
                             modifier = Modifier
-                                .fillMaxWidth()
                                 .clickable { isCompletedExpanded = !isCompletedExpanded }
-                                .padding(horizontal = 4.dp, vertical = 8.dp)
+                                .padding(vertical = 12.dp)
                         ) {
-                            Text(
-                                text = "Completed",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.secondary,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Badge(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
                             ) {
-                                Text(completedTasks.size.toString())
+                                Text(
+                                    text = "Completed",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Badge(
+                                    containerColor = MaterialTheme.colorScheme.tertiary,
+                                    contentColor = MaterialTheme.colorScheme.onTertiary
+                                ) {
+                                    Text(
+                                        text = completedTasks.size.toString(),
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                                val rotation by animateFloatAsState(
+                                    targetValue = if (isCompletedExpanded) 180f else 0f,
+                                    label = "rotation"
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp).rotate(rotation),
+                                    tint = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
                             }
-                            Spacer(Modifier.width(8.dp))
-                            Icon(
-                                imageVector = if (isCompletedExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.secondary
-                            )
                         }
                     }
                     
@@ -348,12 +404,13 @@ fun TaskContent(
                                 confirmValueChange = {
                                     when (it) {
                                         SwipeToDismissBoxValue.StartToEnd -> {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             onToggleTaskCompletion(task, false)
                                             scope.launch {
                                                 val result = snackbarHostState.showSnackbar(
                                                     message = "Task marked as active",
                                                     actionLabel = "UNDO",
-                                                    duration = SnackbarDuration.Long
+                                                    duration = SnackbarDuration.Short
                                                 )
                                                 if (result == SnackbarResult.ActionPerformed) {
                                                     onToggleTaskCompletion(task, true)
@@ -362,6 +419,7 @@ fun TaskContent(
                                             true
                                         }
                                         SwipeToDismissBoxValue.EndToStart -> {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             onDeleteTask(task)
                                             scope.launch {
                                                 val result = snackbarHostState.showSnackbar(
@@ -383,11 +441,26 @@ fun TaskContent(
                             SwipeToDismissBox(
                                 state = dismissState,
                                 backgroundContent = { SwipeBackground(dismissState) },
-                                modifier = Modifier.animateItemPlacement()
+                                modifier = Modifier.animateItemPlacement(
+                                    animationSpec = tween(durationMillis = 600)
+                                )
                             ) {
                                 TaskCard(
                                     task = task,
-                                    onToggleCompletion = { onToggleTaskCompletion(task, null) },
+                                    onToggleCompletion = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        onToggleTaskCompletion(task, false)
+                                        scope.launch {
+                                            val result = snackbarHostState.showSnackbar(
+                                                message = "Task marked as active",
+                                                actionLabel = "UNDO",
+                                                duration = SnackbarDuration.Short
+                                            )
+                                            if (result == SnackbarResult.ActionPerformed) {
+                                                onToggleTaskCompletion(task, true)
+                                            }
+                                        }
+                                    },
                                     onClick = {
                                         editingTask = task
                                         taskTitle = task.title
@@ -669,6 +742,7 @@ fun TaskContent(
                                 val isTaskCompleted = editingTask?.isCompleted == true
                                 Button(
                                     onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         editingTask?.let { onToggleTaskCompletion(it, null) }
                                         showDialog = false
                                     },
@@ -733,8 +807,8 @@ fun TaskContent(
 @Composable
 fun SwipeBackground(dismissState: SwipeToDismissBoxState) {
     val color = when (dismissState.dismissDirection) {
-        SwipeToDismissBoxValue.StartToEnd -> Color(0xFF4CAF50) // Green for complete
-        SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.error // Red for delete
+        SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.primaryContainer
+        SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
         else -> Color.Transparent
     }
     val alignment = when (dismissState.dismissDirection) {
@@ -747,22 +821,29 @@ fun SwipeBackground(dismissState: SwipeToDismissBoxState) {
         SwipeToDismissBoxValue.EndToStart -> Icons.Default.Delete
         else -> Icons.Default.Delete
     }
+    val iconTint = when (dismissState.dismissDirection) {
+        SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.onPrimaryContainer
+        SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.onErrorContainer
+        else -> Color.White
+    }
     val scale by animateFloatAsState(
-        if (dismissState.targetValue == SwipeToDismissBoxValue.Settled) 0.75f else 1f, label = "iconScale"
+        targetValue = if (dismissState.targetValue == SwipeToDismissBoxValue.Settled) 0.75f else 1f,
+        animationSpec = tween(durationMillis = 400),
+        label = "iconScale"
     )
 
     Box(
         Modifier
             .fillMaxSize()
-            .background(color, shape = MaterialTheme.shapes.extraLarge)
-            .padding(horizontal = 20.dp),
+            .background(color, shape = CircleShape)
+            .padding(horizontal = 24.dp),
         contentAlignment = alignment
     ) {
         Icon(
             icon,
             contentDescription = null,
             modifier = Modifier.size(24.dp).alpha(scale),
-            tint = Color.White
+            tint = iconTint
         )
     }
 }
@@ -773,24 +854,56 @@ fun TaskCard(
     onToggleCompletion: () -> Unit, 
     onClick: () -> Unit
 ) {
-    val alpha by animateFloatAsState(if (task.isCompleted) 0.6f else 1f, label = "taskAlpha")
+    val alpha by animateFloatAsState(
+        targetValue = if (task.isCompleted) 0.6f else 1f,
+        animationSpec = tween(durationMillis = 500),
+        label = "taskAlpha"
+    )
     
+    val containerColor by animateColorAsState(
+        targetValue = if (task.isCompleted) 
+            MaterialTheme.colorScheme.surfaceContainer
+        else 
+            MaterialTheme.colorScheme.surfaceContainerLow,
+        animationSpec = tween(durationMillis = 500),
+        label = "containerColor"
+    )
+    
+    val tonalElevation by animateDpAsState(
+        targetValue = if (task.isCompleted) 0.dp else 1.dp,
+        label = "tonalElevation"
+    )
+
+    val formattedDate = remember(task.dueDate) {
+        task.dueDate?.let { dueDate ->
+            val cal = Calendar.getInstance().apply { timeInMillis = dueDate }
+            val hasTime = cal.get(Calendar.MILLISECOND) == 1
+            val pattern = if (hasTime) "MMM dd, HH:mm" else "MMM dd"
+            SimpleDateFormat(pattern, Locale.getDefault()).format(Date(dueDate))
+        }
+    }
+
+    val isOverdue = remember(task.dueDate, task.isCompleted) {
+        task.dueDate?.let { it < System.currentTimeMillis() && !task.isCompleted } ?: false
+    }
+
+    val outlineVariant = MaterialTheme.colorScheme.outlineVariant
+    val borderStroke = remember(task.isCompleted, outlineVariant) {
+        if (task.isCompleted) null else androidx.compose.foundation.BorderStroke(1.dp, outlineVariant.copy(alpha = 0.2f))
+    }
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(alpha)
+            .graphicsLayer { this.alpha = alpha }
             .clickable { onClick() },
-        color = if (task.isCompleted) 
-            MaterialTheme.colorScheme.surface
-        else 
-            MaterialTheme.colorScheme.surface,
-        shape = MaterialTheme.shapes.large,
-        tonalElevation = if (task.isCompleted) 0.dp else 1.dp,
-        shadowElevation = if (task.isCompleted) 0.dp else 1.dp,
-        border = if (task.isCompleted) null else androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+        color = containerColor,
+        shape = CircleShape,
+        tonalElevation = tonalElevation,
+        border = borderStroke
     ) {
         ListItem(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             colors = ListItemDefaults.colors(
                 containerColor = Color.Transparent
             ),
@@ -822,38 +935,32 @@ fun TaskCard(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         // Priority Badge
-                        if (!task.isCompleted) {
-                            Surface(
+                        Surface(
+                            color = when (task.priority) {
+                                Priority.HIGH -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f)
+                                Priority.MEDIUM -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.8f)
+                                Priority.LOW -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
+                            },
+                            shape = CircleShape
+                        ) {
+                            Text(
+                                text = task.priority.name,
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                 color = when (task.priority) {
-                                    Priority.HIGH -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f)
-                                    Priority.MEDIUM -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.8f)
-                                    Priority.LOW -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
-                                },
-                                shape = CircleShape
-                            ) {
-                                Text(
-                                    text = task.priority.name,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    color = when (task.priority) {
-                                        Priority.HIGH -> MaterialTheme.colorScheme.onErrorContainer
-                                        Priority.MEDIUM -> MaterialTheme.colorScheme.onSecondaryContainer
-                                        Priority.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
-                                    }
-                                )
-                            }
+                                    Priority.HIGH -> MaterialTheme.colorScheme.onErrorContainer
+                                    Priority.MEDIUM -> MaterialTheme.colorScheme.onSecondaryContainer
+                                    Priority.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
                         }
 
                         // Due Date
-                        task.dueDate?.let { dueDate ->
-                            val cal = Calendar.getInstance().apply { timeInMillis = dueDate }
-                            val hasTime = cal.get(Calendar.MILLISECOND) == 1
-                            val pattern = if (hasTime) "MMM dd, HH:mm" else "MMM dd"
-                            val sdf = SimpleDateFormat(pattern, Locale.getDefault())
+                        formattedDate?.let { dateString ->
                             Surface(
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                                 shape = CircleShape,
-                                border = if (dueDate < System.currentTimeMillis() && !task.isCompleted) 
+                                border = if (isOverdue) 
                                     androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error) 
                                 else null
                             ) {
@@ -865,16 +972,16 @@ fun TaskCard(
                                         imageVector = Icons.Default.DateRange,
                                         contentDescription = null,
                                         modifier = Modifier.size(14.dp),
-                                        tint = if (dueDate < System.currentTimeMillis() && !task.isCompleted)
+                                        tint = if (isOverdue)
                                             MaterialTheme.colorScheme.error
                                         else
                                             MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Spacer(Modifier.width(4.dp))
                                     Text(
-                                        text = sdf.format(Date(dueDate)),
+                                        text = dateString,
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = if (dueDate < System.currentTimeMillis() && !task.isCompleted)
+                                        color = if (isOverdue)
                                             MaterialTheme.colorScheme.error
                                         else
                                             MaterialTheme.colorScheme.onSurfaceVariant
@@ -886,10 +993,7 @@ fun TaskCard(
                         // Recurrence Tag
                         if (task.recurrence != Recurrence.NONE) {
                             Surface(
-                                color = if (task.isCompleted) 
-                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                                else 
-                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
                                 shape = CircleShape
                             ) {
                                 Row(
@@ -900,19 +1004,13 @@ fun TaskCard(
                                         imageVector = Icons.Default.Refresh,
                                         contentDescription = null,
                                         modifier = Modifier.size(12.dp),
-                                        tint = if (task.isCompleted) 
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        else 
-                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
                                     Spacer(Modifier.width(4.dp))
                                     Text(
                                         text = task.recurrence.name.lowercase().replaceFirstChar { it.uppercase() },
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = if (task.isCompleted) 
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        else 
-                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
                                 }
                             }
