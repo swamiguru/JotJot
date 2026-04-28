@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.jotjot.data.Task
@@ -29,6 +30,12 @@ import com.example.jotjot.data.Recurrence
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.launch
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.rotate
+import kotlin.random.Random
+import kotlin.math.sin
 
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
@@ -106,7 +113,16 @@ fun TaskContent(
     var taskRecurrence by remember { mutableStateOf(Recurrence.NONE) }
     var selectedDateTime by remember { mutableStateOf<Calendar?>(null) }
     var isCompletedExpanded by remember { mutableStateOf(false) }
-    
+    var showCelebration by remember { mutableStateOf(false) }
+
+    val handleToggleCompletion = { task: Task, completed: Boolean? ->
+        val targetStatus = completed ?: !task.isCompleted
+        if (targetStatus && !task.isCompleted && task.priority == Priority.HIGH) {
+            showCelebration = true
+        }
+        onToggleTaskCompletion(task, completed)
+    }
+
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
 
@@ -145,7 +161,8 @@ fun TaskContent(
         }
     }
 
-    Scaffold(
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
@@ -283,7 +300,7 @@ fun TaskContent(
                             when (it) {
                                 SwipeToDismissBoxValue.StartToEnd -> {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            onToggleTaskCompletion(task, true)
+                                            handleToggleCompletion(task, true)
                                             scope.launch {
                                                 val result = snackbarHostState.showSnackbar(
                                                     message = "Task completed",
@@ -327,7 +344,7 @@ fun TaskContent(
                             task = task,
                             onToggleCompletion = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onToggleTaskCompletion(task, true)
+                                handleToggleCompletion(task, true)
                                 scope.launch {
                                     val result = snackbarHostState.showSnackbar(
                                         message = "Task completed",
@@ -405,7 +422,7 @@ fun TaskContent(
                                     when (it) {
                                         SwipeToDismissBoxValue.StartToEnd -> {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            onToggleTaskCompletion(task, false)
+                                            handleToggleCompletion(task, false)
                                             scope.launch {
                                                 val result = snackbarHostState.showSnackbar(
                                                     message = "Task marked as active",
@@ -449,7 +466,7 @@ fun TaskContent(
                                     task = task,
                                     onToggleCompletion = {
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        onToggleTaskCompletion(task, false)
+                                        handleToggleCompletion(task, false)
                                         scope.launch {
                                             val result = snackbarHostState.showSnackbar(
                                                 message = "Task marked as active",
@@ -743,7 +760,7 @@ fun TaskContent(
                                 Button(
                                     onClick = {
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        editingTask?.let { onToggleTaskCompletion(it, null) }
+                                        editingTask?.let { handleToggleCompletion(it, null) }
                                         showDialog = false
                                     },
                                     modifier = Modifier.fillMaxWidth(),
@@ -800,6 +817,124 @@ fun TaskContent(
                 }
             }
         }
+
+        CelebrationOverlay(
+            visible = showCelebration,
+            onDismiss = { showCelebration = false }
+        )
+    }
+}
+}
+
+@Composable
+private fun CelebrationOverlay(visible: Boolean, onDismiss: () -> Unit) {
+    if (!visible) return
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Transparent)
+            .clickable(enabled = false) { },
+        contentAlignment = Alignment.Center
+    ) {
+        ConfettiEffect()
+    }
+    
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(5000)
+        onDismiss()
+    }
+}
+
+@Composable
+private fun ConfettiEffect() {
+    val colors = listOf(
+        Color(0xFFFF5252), Color(0xFFFFEB3B), Color(0xFF448AFF),
+        Color(0xFF69F0AE), Color(0xFFFF4081), Color(0xFF7C4DFF),
+        Color(0xFF18FFFF), Color(0xFFE040FB)
+    )
+    
+    val particles = remember {
+        List(150) {
+            ConfettiParticle(color = colors.random())
+        }
+    }
+
+    val frameClock = remember { mutableLongStateOf(0L) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            withFrameNanos { frameClock.longValue = it }
+        }
+    }
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        @Suppress("UNUSED_VARIABLE")
+        val frame = frameClock.longValue // Force redraw on every frame
+        particles.forEach { p ->
+            p.update(size.width, size.height)
+            rotate(p.rotation, pivot = Offset(p.x, p.y)) {
+                // Realistic flutter effect by oscillating the width
+                val flutter = sin(p.sideWaysMotion).coerceAtLeast(0.1f)
+                drawRect(
+                    color = p.color,
+                    topLeft = Offset(p.x, p.y),
+                    size = androidx.compose.ui.geometry.Size(p.width * flutter, p.height),
+                    alpha = p.alpha
+                )
+            }
+        }
+    }
+}
+
+private class ConfettiParticle(val color: Color) {
+    var x = 0f
+    var y = 0f
+    var width = 0f
+    var height = 0f
+    var vx = 0f
+    var vy = 0f
+    var rotation = 0f
+    var rotationSpeed = 0f
+    var alpha = 1f
+    var sideWaysMotion = 0f
+    var sideWaysSpeed = 0f
+    var isInitialized = false
+
+    fun reset(screenWidth: Float, screenHeight: Float, init: Boolean = false) {
+        x = Random.nextFloat() * screenWidth
+        y = if (init) (Random.nextFloat() * 2f - 1.5f) * screenHeight else -50f
+        width = Random.nextFloat() * 40f + 30f
+        height = width * 0.6f
+        vx = Random.nextFloat() * 8f - 4f
+        vy = Random.nextFloat() * 12f + 8f
+        rotation = Random.nextFloat() * 360f
+        rotationSpeed = Random.nextFloat() * 15f - 7.5f
+        sideWaysMotion = Random.nextFloat() * 2f * Math.PI.toFloat()
+        sideWaysSpeed = Random.nextFloat() * 0.1f + 0.05f
+        alpha = 1f
+        isInitialized = true
+    }
+
+    fun update(screenWidth: Float, screenHeight: Float) {
+        if (!isInitialized) {
+            reset(screenWidth, screenHeight, init = true)
+        }
+
+        sideWaysMotion += sideWaysSpeed
+        x += vx + sin(sideWaysMotion) * 2f
+        y += vy
+        rotation += rotationSpeed
+        
+        // Simulating some drag and gravity
+        vy += 0.05f // gravity
+        
+        if (y > screenHeight) {
+            reset(screenWidth, screenHeight)
+        }
+        
+        // Horizontal wrap
+        if (x < -50f) x = screenWidth + 50f
+        if (x > screenWidth + 50f) x = -50f
     }
 }
 
@@ -907,7 +1042,7 @@ fun TaskCard(
             colors = ListItemDefaults.colors(
                 containerColor = Color.Transparent
             ),
-            headlineContent = { 
+            headlineContent = {
                 Text(
                     task.title,
                     style = MaterialTheme.typography.titleMedium,
@@ -928,7 +1063,7 @@ fun TaskCard(
                             maxLines = 2
                         )
                     }
-                    
+
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -960,8 +1095,8 @@ fun TaskCard(
                             Surface(
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                                 shape = CircleShape,
-                                border = if (isOverdue) 
-                                    androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error) 
+                                border = if (isOverdue)
+                                    androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error)
                                 else null
                             ) {
                                 Row(
