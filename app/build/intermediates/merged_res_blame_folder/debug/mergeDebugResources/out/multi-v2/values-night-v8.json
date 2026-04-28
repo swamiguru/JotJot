@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.jotjot.app-mergeDebugResources-57:/values-night-v8/values-night-v8.xml",
+            "outputFile": "com.example.jotjot.app-mergeDebugResources-50:/values-night-v8/values-night-v8.xml",
             "map": [
                 {
                     "source": "/Users/masterswami/.gradle/caches/9.4.1/transforms/acd3e41604b0e2fabd5eb5a912c49e7c/transformed/glance-1.1.1/res/values-night-v8/values-night-v8.xml",

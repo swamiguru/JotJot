@@ -3,24 +3,24 @@
 3    package="com.example.jotjot.test" >
 4
 5    <uses-sdk
-5-->/Users/masterswami/AndroidStudioProjects/JotJot/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest16342447235475217394.xml:5:5-74
+5-->/Users/masterswami/AndroidStudioProjects/JotJot/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest16740243664538341863.xml:5:5-74
 6        android:minSdkVersion="24"
-6-->/Users/masterswami/AndroidStudioProjects/JotJot/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest16342447235475217394.xml:5:15-41
-7        android:targetSdkVersion="34" />
-7-->/Users/masterswami/AndroidStudioProjects/JotJot/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest16342447235475217394.xml:5:42-71
+6-->/Users/masterswami/AndroidStudioProjects/JotJot/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest16740243664538341863.xml:5:15-41
+7        android:targetSdkVersion="35" />
+7-->/Users/masterswami/AndroidStudioProjects/JotJot/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest16740243664538341863.xml:5:42-71
 8
 9    <instrumentation
-9-->/Users/masterswami/AndroidStudioProjects/JotJot/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest16342447235475217394.xml:7:5-11:68
+9-->/Users/masterswami/AndroidStudioProjects/JotJot/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest16740243664538341863.xml:7:5-11:68
 10        android:name="androidx.test.runner.AndroidJUnitRunner"
-10-->/Users/masterswami/AndroidStudioProjects/JotJot/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest16342447235475217394.xml:7:22-76
+10-->/Users/masterswami/AndroidStudioProjects/JotJot/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest16740243664538341863.xml:7:22-76
 11        android:functionalTest="false"
-11-->/Users/masterswami/AndroidStudioProjects/JotJot/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest16342447235475217394.xml:10:22-52
+11-->/Users/masterswami/AndroidStudioProjects/JotJot/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest16740243664538341863.xml:10:22-52
 12        android:handleProfiling="false"
-12-->/Users/masterswami/AndroidStudioProjects/JotJot/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest16342447235475217394.xml:9:22-53
+12-->/Users/masterswami/AndroidStudioProjects/JotJot/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest16740243664538341863.xml:9:22-53
 13        android:label="Tests for com.example.jotjot"
-13-->/Users/masterswami/AndroidStudioProjects/JotJot/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest16342447235475217394.xml:11:22-66
+13-->/Users/masterswami/AndroidStudioProjects/JotJot/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest16740243664538341863.xml:11:22-66
 14        android:targetPackage="com.example.jotjot" />
-14-->/Users/masterswami/AndroidStudioProjects/JotJot/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest16342447235475217394.xml:8:22-64
+14-->/Users/masterswami/AndroidStudioProjects/JotJot/app/build/intermediates/tmp/manifest/androidTest/debug/tempFile1ProcessTestManifest16740243664538341863.xml:8:22-64
 15
 16    <uses-permission android:name="android.permission.REORDER_TASKS" />
 16-->[androidx.test:core:1.5.0] /Users/masterswami/.gradle/caches/9.4.1/transforms/a77c6f1f7507b2db817f55d23d176777/transformed/core-1.5.0/AndroidManifest.xml:24:5-72

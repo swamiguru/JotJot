@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,7 +22,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.jotjot.data.Task
@@ -226,7 +226,7 @@ fun TaskContent(
                     var showSortMenu by remember { mutableStateOf(false) }
                     Box {
                         IconButton(onClick = { showSortMenu = true }) {
-                            Icon(Icons.Default.List, contentDescription = "Sort")
+                            Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Sort")
                         }
                         DropdownMenu(
                             expanded = showSortMenu,
@@ -336,8 +336,8 @@ fun TaskContent(
                     SwipeToDismissBox(
                         state = dismissState,
                         backgroundContent = { SwipeBackground(dismissState) },
-                        modifier = Modifier.animateItemPlacement(
-                            animationSpec = tween(durationMillis = 600)
+                        modifier = Modifier.animateItem(
+                            placementSpec = tween(durationMillis = 600)
                         )
                     ) {
                         TaskCard(
@@ -458,8 +458,8 @@ fun TaskContent(
                             SwipeToDismissBox(
                                 state = dismissState,
                                 backgroundContent = { SwipeBackground(dismissState) },
-                                modifier = Modifier.animateItemPlacement(
-                                    animationSpec = tween(durationMillis = 600)
+                                modifier = Modifier.animateItem(
+                                    placementSpec = tween(durationMillis = 600)
                                 )
                             ) {
                                 TaskCard(
@@ -868,8 +868,7 @@ private fun ConfettiEffect() {
     }
 
     Canvas(modifier = Modifier.fillMaxSize()) {
-        @Suppress("UNUSED_VARIABLE")
-        val frame = frameClock.longValue // Force redraw on every frame
+        frameClock.longValue // Force redraw on every frame
         particles.forEach { p ->
             p.update(size.width, size.height)
             rotate(p.rotation, pivot = Offset(p.x, p.y)) {
