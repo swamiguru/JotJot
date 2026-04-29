@@ -17,10 +17,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -37,6 +39,15 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import kotlin.random.Random
 import kotlin.math.sin
 
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
+import androidx.compose.material3.MediumTopAppBar
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -102,7 +113,8 @@ fun TaskContent(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
-    
+    val lazyListState = rememberLazyListState()
+
     var showDialog by remember { mutableStateOf(false) }
     var isSearchActive by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
@@ -170,9 +182,9 @@ fun TaskContent(
                     AnimatedContent(
                         targetState = isSearchActive,
                         transitionSpec = {
-                            (fadeIn(animationSpec = tween(300, delayMillis = 150)) + 
-                             scaleIn(initialScale = 0.92f, animationSpec = tween(300, delayMillis = 150)))
-                                .togetherWith(fadeOut(animationSpec = tween(150)))
+                            (fadeIn(animationSpec = spring(stiffness = Spring.StiffnessLow)) + 
+                             scaleIn(initialScale = 0.8f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)))
+                                .togetherWith(fadeOut(animationSpec = spring(stiffness = Spring.StiffnessLow)))
                         },
                         label = "searchTransition"
                     ) { active ->
@@ -197,7 +209,8 @@ fun TaskContent(
                             Text(
                                 text = "JotJot",
                                 style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         }
                     }
@@ -250,25 +263,33 @@ fun TaskContent(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { 
-                editingTask = null
-                taskTitle = ""
-                taskNotes = ""
-                taskPriority = Priority.MEDIUM
-                taskRecurrence = Recurrence.NONE
-                selectedDateTime = null
-                showDialog = true 
-            }) {
-                Icon(Icons.Default.Add, contentDescription = "Add Task")
+            val isExpanded by remember {
+                derivedStateOf { lazyListState.firstVisibleItemIndex == 0 }
             }
+            ExtendedFloatingActionButton(
+                expanded = isExpanded,
+                onClick = {
+                    editingTask = null
+                    taskTitle = ""
+                    taskNotes = ""
+                    taskPriority = Priority.MEDIUM
+                    taskRecurrence = Recurrence.NONE
+                    selectedDateTime = null
+                    showDialog = true
+                },
+                icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                text = { Text("New Task") },
+                shape = MaterialTheme.shapes.large
+            )
         }
     ) { padding ->
         LazyColumn(
+            state = lazyListState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (activeTasks.isEmpty() && completedTasks.isEmpty()) {
                 item {
@@ -281,16 +302,31 @@ fun TaskContent(
                     item {
                         Surface(
                             color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = CircleShape,
+                            shape = MaterialTheme.shapes.large,
                             modifier = Modifier.padding(vertical = 12.dp)
                         ) {
-                            Text(
-                                text = "Active Tasks",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp)
+                            ) {
+                                ActiveTasksPulse()
+                                Text(
+                                    text = "Active Tasks",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                                Badge(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                ) {
+                                    Text(
+                                        text = activeTasks.size.toString(),
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -376,7 +412,7 @@ fun TaskContent(
                         Spacer(modifier = Modifier.height(32.dp))
                         Surface(
                             color = MaterialTheme.colorScheme.tertiaryContainer,
-                            shape = CircleShape,
+                            shape = MaterialTheme.shapes.large,
                             modifier = Modifier
                                 .clickable { isCompletedExpanded = !isCompletedExpanded }
                                 .padding(vertical = 12.dp)
@@ -659,7 +695,7 @@ fun TaskContent(
                                     FilterChip(
                                         selected = taskPriority == priority,
                                         onClick = { taskPriority = priority },
-                                        label = { 
+                                        label = {
                                             Text(
                                                 text = priority.name.lowercase().replaceFirstChar { it.uppercase() },
                                                 style = MaterialTheme.typography.bodyLarge
@@ -703,7 +739,7 @@ fun TaskContent(
                                     FilterChip(
                                         selected = taskRecurrence == recurrence,
                                         onClick = { taskRecurrence = recurrence },
-                                        label = { 
+                                        label = {
                                             Text(
                                                 text = if (recurrence == Recurrence.NONE) "None" else recurrence.name.lowercase().replaceFirstChar { it.uppercase() },
                                                 style = MaterialTheme.typography.bodyLarge
@@ -824,6 +860,50 @@ fun TaskContent(
         )
     }
 }
+}
+
+@Composable
+private fun ActiveTasksPulse() {
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    
+    val pulseProgression by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "pulseProgression"
+    )
+
+    val color = MaterialTheme.colorScheme.primary
+
+    Canvas(modifier = Modifier.size(24.dp)) {
+        val center = Offset(size.width / 2, size.height / 2)
+        val maxRadius = size.width / 2
+
+        // Outer rings
+        for (i in 0..2) {
+            val ringProgress = (pulseProgression + i * 0.33f) % 1f
+            val radius = maxRadius * ringProgress
+            val alpha = (1f - ringProgress).coerceIn(0f, 1f)
+            
+            drawCircle(
+                color = color,
+                radius = radius,
+                center = center,
+                style = Stroke(width = 2.dp.toPx()),
+                alpha = alpha * 0.6f
+            )
+        }
+
+        // Static core
+        drawCircle(
+            color = color,
+            radius = 4.dp.toPx(),
+            center = center
+        )
+    }
 }
 
 @Composable
@@ -969,7 +1049,7 @@ fun SwipeBackground(dismissState: SwipeToDismissBoxState) {
     Box(
         Modifier
             .fillMaxSize()
-            .background(color, shape = CircleShape)
+            .background(color, shape = MaterialTheme.shapes.extraLarge)
             .padding(horizontal = 24.dp),
         contentAlignment = alignment
     ) {
@@ -990,7 +1070,7 @@ fun TaskCard(
 ) {
     val alpha by animateFloatAsState(
         targetValue = if (task.isCompleted) 0.6f else 1f,
-        animationSpec = tween(durationMillis = 500),
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "taskAlpha"
     )
     
@@ -999,13 +1079,20 @@ fun TaskCard(
             MaterialTheme.colorScheme.surfaceContainer
         else 
             MaterialTheme.colorScheme.surfaceContainerLow,
-        animationSpec = tween(durationMillis = 500),
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
         label = "containerColor"
     )
     
     val tonalElevation by animateDpAsState(
-        targetValue = if (task.isCompleted) 0.dp else 1.dp,
+        targetValue = if (task.isCompleted) 0.dp else 2.dp,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "tonalElevation"
+    )
+
+    val scale by animateFloatAsState(
+        targetValue = if (task.isCompleted) 0.98f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "cardScale"
     )
 
     val formattedDate = remember(task.dueDate) {
@@ -1023,21 +1110,25 @@ fun TaskCard(
 
     val outlineVariant = MaterialTheme.colorScheme.outlineVariant
     val borderStroke = remember(task.isCompleted, outlineVariant) {
-        if (task.isCompleted) null else androidx.compose.foundation.BorderStroke(1.dp, outlineVariant.copy(alpha = 0.2f))
+        if (task.isCompleted) null else androidx.compose.foundation.BorderStroke(1.dp, outlineVariant.copy(alpha = 0.3f))
     }
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .graphicsLayer { this.alpha = alpha }
+            .graphicsLayer { 
+                this.alpha = alpha 
+                scaleX = scale
+                scaleY = scale
+            }
             .clickable { onClick() },
         color = containerColor,
-        shape = CircleShape,
+        shape = MaterialTheme.shapes.extraLarge,
         tonalElevation = tonalElevation,
         border = borderStroke
     ) {
         ListItem(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
             colors = ListItemDefaults.colors(
                 containerColor = Color.Transparent
             ),
@@ -1045,42 +1136,45 @@ fun TaskCard(
                 Text(
                     task.title,
                     style = MaterialTheme.typography.titleMedium,
+                    fontWeight = if (task.isCompleted) FontWeight.Normal else FontWeight.SemiBold,
                     textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
                     modifier = Modifier.fillMaxWidth()
                 )
             },
             supportingContent = {
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(top = 4.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.padding(top = 2.dp)
                 ) {
                     if (!task.notes.isNullOrBlank()) {
                         Text(
                             text = task.notes,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 2
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         // Priority Badge
                         Surface(
                             color = when (task.priority) {
-                                Priority.HIGH -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f)
-                                Priority.MEDIUM -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.8f)
-                                Priority.LOW -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
+                                Priority.HIGH -> MaterialTheme.colorScheme.errorContainer
+                                Priority.MEDIUM -> MaterialTheme.colorScheme.secondaryContainer
+                                Priority.LOW -> MaterialTheme.colorScheme.surfaceVariant
                             },
-                            shape = CircleShape
+                            shape = MaterialTheme.shapes.small
                         ) {
                             Text(
                                 text = task.priority.name,
                                 style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 color = when (task.priority) {
                                     Priority.HIGH -> MaterialTheme.colorScheme.onErrorContainer
                                     Priority.MEDIUM -> MaterialTheme.colorScheme.onSecondaryContainer
@@ -1092,20 +1186,20 @@ fun TaskCard(
                         // Due Date
                         formattedDate?.let { dateString ->
                             Surface(
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                shape = CircleShape,
+                                color = if (isOverdue) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                shape = MaterialTheme.shapes.small,
                                 border = if (isOverdue)
                                     androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error)
                                 else null
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.DateRange,
                                         contentDescription = null,
-                                        modifier = Modifier.size(14.dp),
+                                        modifier = Modifier.size(12.dp),
                                         tint = if (isOverdue)
                                             MaterialTheme.colorScheme.error
                                         else
@@ -1115,6 +1209,7 @@ fun TaskCard(
                                     Text(
                                         text = dateString,
                                         style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = if (isOverdue) FontWeight.Bold else FontWeight.Medium,
                                         color = if (isOverdue)
                                             MaterialTheme.colorScheme.error
                                         else
@@ -1127,24 +1222,24 @@ fun TaskCard(
                         // Recurrence Tag
                         if (task.recurrence != Recurrence.NONE) {
                             Surface(
-                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-                                shape = CircleShape
+                                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f),
+                                shape = MaterialTheme.shapes.small
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Refresh,
                                         contentDescription = null,
-                                        modifier = Modifier.size(12.dp),
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                        modifier = Modifier.size(10.dp),
+                                        tint = MaterialTheme.colorScheme.onTertiaryContainer
                                     )
                                     Spacer(Modifier.width(4.dp))
                                     Text(
                                         text = task.recurrence.name.lowercase().replaceFirstChar { it.uppercase() },
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer
                                     )
                                 }
                             }
@@ -1155,7 +1250,8 @@ fun TaskCard(
             leadingContent = {
                 RadioButton(
                     selected = task.isCompleted,
-                    onClick = { onToggleCompletion() }
+                    onClick = { onToggleCompletion() },
+                    modifier = Modifier.scale(0.9f)
                 )
             }
         )
