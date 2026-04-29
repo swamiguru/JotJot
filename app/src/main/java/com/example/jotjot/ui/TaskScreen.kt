@@ -535,16 +535,34 @@ fun TaskContent(
 
         if (showDatePicker) {
             val datePickerState = rememberDatePickerState(
-                initialSelectedDateMillis = selectedDateTime?.timeInMillis ?: System.currentTimeMillis()
+                initialSelectedDateMillis = selectedDateTime?.let {
+                    val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+                    utcCal.set(it.get(Calendar.YEAR), it.get(Calendar.MONTH), it.get(Calendar.DAY_OF_MONTH), 0, 0, 0)
+                    utcCal.set(Calendar.MILLISECOND, 0)
+                    utcCal.timeInMillis
+                } ?: run {
+                    val cal = Calendar.getInstance()
+                    val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+                    utcCal.set(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH), 0, 0, 0)
+                    utcCal.set(Calendar.MILLISECOND, 0)
+                    utcCal.timeInMillis
+                }
             )
             DatePickerDialog(
                 onDismissRequest = { showDatePicker = false },
                 confirmButton = {
                     TextButton(onClick = {
-                        val selectedDate = Calendar.getInstance().apply {
-                            timeInMillis = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
+                        val utcMillis = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
+                        val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+                            timeInMillis = utcMillis
                         }
-                        selectedDateTime = selectedDate
+                        val localCal = selectedDateTime ?: Calendar.getInstance()
+                        localCal.set(
+                            utcCal.get(Calendar.YEAR),
+                            utcCal.get(Calendar.MONTH),
+                            utcCal.get(Calendar.DAY_OF_MONTH)
+                        )
+                        selectedDateTime = localCal
                         showDatePicker = false
                         showTimePicker = true
                     }) { Text("Next") }
