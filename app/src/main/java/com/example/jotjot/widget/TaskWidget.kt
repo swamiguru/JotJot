@@ -21,7 +21,6 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import androidx.glance.GlanceTheme
-import androidx.glance.material3.ColorProviders
 import com.example.jotjot.MainActivity
 import com.example.jotjot.data.AppDatabase
 import com.example.jotjot.data.Task
@@ -126,8 +125,9 @@ class TaskWidget : GlanceAppWidget() {
 
     @Composable
     private fun TaskItem(context: Context, task: Task) {
-        val dateFormat = SimpleDateFormat("MMM dd", Locale.getDefault())
-        val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+        val locale = Locale.getDefault()
+        val dateFormat = SimpleDateFormat("MMM dd", locale)
+        val timeFormat = SimpleDateFormat("HH:mm", locale)
         
         val taskIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -179,7 +179,7 @@ class TaskWidget : GlanceAppWidget() {
 
             task.dueDate?.let { dueDate ->
                 val calendar = Calendar.getInstance().apply { timeInMillis = dueDate }
-                val hasTime = calendar.get(Calendar.MILLISECOND) == 1
+                val hasTime = calendar[Calendar.MILLISECOND] == 1
                 
                 Column(horizontalAlignment = Alignment.End) {
                     Text(

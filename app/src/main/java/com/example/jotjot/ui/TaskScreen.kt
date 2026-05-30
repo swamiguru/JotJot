@@ -39,11 +39,8 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import kotlin.random.Random
 import kotlin.math.sin
 
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberTopAppBarState
-import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -66,7 +63,7 @@ import android.content.res.Configuration
 fun TaskScreen(
     viewModel: TaskViewModel = viewModel(),
     initialTaskIdToEdit: Long = -1L,
-    showAddTaskDialog: Boolean = false
+    showAddTaskDialog: Boolean = false,
 ) {
     val tasks by viewModel.allTasks.collectAsState()
     val sortDirection by viewModel.sortDirection.collectAsState()
@@ -85,7 +82,7 @@ fun TaskScreen(
         onToggleTaskCompletion = { task, status -> viewModel.toggleTaskCompletion(task, status) },
         onDeleteTask = viewModel::deleteTask,
         onAddTask = viewModel::addTask,
-        onUpdateTask = viewModel::updateTask
+        onUpdateTask = viewModel::updateTask,
     )
 }
 
@@ -104,7 +101,7 @@ fun TaskContent(
     onToggleTaskCompletion: (Task, Boolean?) -> Unit,
     onDeleteTask: (Task) -> Unit,
     onAddTask: (String, String?, Long?, Priority, Recurrence) -> Unit,
-    onUpdateTask: (Task, String, String?, Long?, Priority, Recurrence) -> Unit
+    onUpdateTask: (Task, String, String?, Long?, Priority, Recurrence) -> Unit,
 ) {
     val activeTasks = remember(tasks) { tasks.filter { !it.isCompleted } }
     val completedTasks = remember(tasks) { tasks.filter { it.isCompleted } }
@@ -114,8 +111,8 @@ fun TaskContent(
     val haptic = LocalHapticFeedback.current
     val lazyListState = rememberLazyListState()
 
-    var showDialog by remember { mutableStateOf(false) }
-    var isSearchActive by remember { mutableStateOf(false) }
+    var showDialog by remember { mutableStateOf(value = false) }
+    var isSearchActive by remember { mutableStateOf(value = false) }
     val focusRequester = remember { FocusRequester() }
     var editingTask by remember { mutableStateOf<Task?>(null) }
     var taskTitle by remember { mutableStateOf("") }
@@ -123,12 +120,12 @@ fun TaskContent(
     var taskPriority by remember { mutableStateOf(Priority.MEDIUM) }
     var taskRecurrence by remember { mutableStateOf(Recurrence.NONE) }
     var selectedDateTime by remember { mutableStateOf<Calendar?>(null) }
-    var isCompletedExpanded by remember { mutableStateOf(false) }
+    var isCompletedExpanded by remember { mutableStateOf(value = false) }
     var showCelebration by remember { mutableStateOf(false) }
 
     val handleToggleCompletion = { task: Task, completed: Boolean? ->
         val targetStatus = completed ?: !task.isCompleted
-        if (targetStatus && !task.isCompleted && task.priority == Priority.HIGH) {
+        if (targetStatus && !task.isCompleted && (task.priority == Priority.HIGH)) {
             showCelebration = true
         }
         onToggleTaskCompletion(task, completed)
@@ -536,14 +533,14 @@ fun TaskContent(
             val datePickerState = rememberDatePickerState(
                 initialSelectedDateMillis = selectedDateTime?.let {
                     val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
-                    utcCal.set(it.get(Calendar.YEAR), it.get(Calendar.MONTH), it.get(Calendar.DAY_OF_MONTH), 0, 0, 0)
-                    utcCal.set(Calendar.MILLISECOND, 0)
+                    utcCal.set(it[Calendar.YEAR], it[Calendar.MONTH], it[Calendar.DAY_OF_MONTH], 0, 0, 0)
+                    utcCal[Calendar.MILLISECOND] = 0
                     utcCal.timeInMillis
                 } ?: run {
                     val cal = Calendar.getInstance()
                     val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
-                    utcCal.set(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH), 0, 0, 0)
-                    utcCal.set(Calendar.MILLISECOND, 0)
+                    utcCal.set(cal[Calendar.YEAR], cal[Calendar.MONTH], cal[Calendar.DAY_OF_MONTH], 0, 0, 0)
+                    utcCal[Calendar.MILLISECOND] = 0
                     utcCal.timeInMillis
                 }
             )
@@ -557,9 +554,9 @@ fun TaskContent(
                         }
                         val localCal = selectedDateTime ?: Calendar.getInstance()
                         localCal.set(
-                            utcCal.get(Calendar.YEAR),
-                            utcCal.get(Calendar.MONTH),
-                            utcCal.get(Calendar.DAY_OF_MONTH)
+                            utcCal[Calendar.YEAR],
+                            utcCal[Calendar.MONTH],
+                            utcCal[Calendar.DAY_OF_MONTH]
                         )
                         selectedDateTime = localCal
                         showDatePicker = false
@@ -578,8 +575,8 @@ fun TaskContent(
             val currentTime = Calendar.getInstance()
             val hasTime = selectedDateTime?.get(Calendar.MILLISECOND) == 1
             val timePickerState = rememberTimePickerState(
-                initialHour = if (hasTime) selectedDateTime?.get(Calendar.HOUR_OF_DAY) ?: currentTime.get(Calendar.HOUR_OF_DAY) else currentTime.get(Calendar.HOUR_OF_DAY),
-                initialMinute = if (hasTime) selectedDateTime?.get(Calendar.MINUTE) ?: currentTime.get(Calendar.MINUTE) else currentTime.get(Calendar.MINUTE)
+                initialHour = if (hasTime) selectedDateTime?.get(Calendar.HOUR_OF_DAY) ?: currentTime[Calendar.HOUR_OF_DAY] else currentTime[Calendar.HOUR_OF_DAY],
+                initialMinute = if (hasTime) selectedDateTime?.get(Calendar.MINUTE) ?: currentTime[Calendar.MINUTE] else currentTime[Calendar.MINUTE]
             )
             AlertDialog(
                 onDismissRequest = { showTimePicker = false },
@@ -787,10 +784,11 @@ fun TaskContent(
                                 )
 
                                 selectedDateTime?.let {
-                                    val hasTime = it.get(Calendar.MILLISECOND) == 1
+            val hasTime = it[Calendar.MILLISECOND] == 1
                                     val pattern = if (hasTime) "MMM dd, HH:mm" else "MMM dd"
+                                    val locale = remember { Locale.getDefault() }
                                     Text(
-                                        text = SimpleDateFormat(pattern, Locale.getDefault()).format(it.time),
+                                        text = SimpleDateFormat(pattern, locale).format(it.time),
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.primary
                                     )
@@ -901,7 +899,7 @@ private fun ActiveTasksPulse() {
 
         // Outer rings
         for (i in 0..2) {
-            val ringProgress = (pulseProgression + i * 0.33f) % 1f
+            val ringProgress = (pulseProgression + (i * 0.33f)) % 1f
             val radius = maxRadius * ringProgress
             val alpha = (1f - ringProgress).coerceIn(0f, 1f)
             
@@ -998,7 +996,7 @@ private class ConfettiParticle(val color: Color) {
 
     fun reset(screenWidth: Float, screenHeight: Float, init: Boolean = false) {
         x = Random.nextFloat() * screenWidth
-        y = if (init) (Random.nextFloat() * 2f - 1.5f) * screenHeight else -50f
+        y = if (init) ((Random.nextFloat() * 2f) - 1.5f) * screenHeight else -50f
         width = Random.nextFloat() * 40f + 30f
         height = width * 0.6f
         vx = Random.nextFloat() * 8f - 4f
@@ -1112,12 +1110,13 @@ fun TaskCard(
         label = "cardScale"
     )
 
-    val formattedDate = remember(task.dueDate) {
+    val locale = remember { Locale.getDefault() }
+    val formattedDate = remember(task.dueDate, locale) {
         task.dueDate?.let { dueDate ->
             val cal = Calendar.getInstance().apply { timeInMillis = dueDate }
-            val hasTime = cal.get(Calendar.MILLISECOND) == 1
+            val hasTime = cal[Calendar.MILLISECOND] == 1
             val pattern = if (hasTime) "MMM dd, HH:mm" else "MMM dd"
-            SimpleDateFormat(pattern, Locale.getDefault()).format(Date(dueDate))
+            SimpleDateFormat(pattern, locale).format(Date(dueDate))
         }
     }
 

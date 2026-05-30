@@ -7,7 +7,6 @@ import com.example.jotjot.data.AppDatabase
 import com.example.jotjot.data.Task
 import com.example.jotjot.data.TaskRepository
 import com.example.jotjot.notification.ReminderManager
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 import com.example.jotjot.data.Priority
@@ -102,7 +101,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleTaskCompletion(task: Task, isCompleted: Boolean? = null) {
         viewModelScope.launch {
             val targetStatus = isCompleted ?: !task.isCompleted
-            if (targetStatus && !task.isCompleted && task.recurrence != Recurrence.NONE && task.dueDate != null) {
+            if (targetStatus && !task.isCompleted && (task.recurrence != Recurrence.NONE) && (task.dueDate != null)) {
                 // If a recurring task is completed, create the next instance
                 val nextDueDate = calculateNextDueDate(task.dueDate, task.recurrence)
                 repository.insert(task.copy(id = 0, isCompleted = false, dueDate = nextDueDate, createdAt = System.currentTimeMillis()))
