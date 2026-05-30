@@ -72,7 +72,6 @@ fun TaskScreen(
     val sortDirection by viewModel.sortDirection.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val sortOrder by viewModel.sortOrder.collectAsState()
-
     TaskContent(
         tasks = tasks,
         sortDirection = sortDirection,

@@ -45,7 +45,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     init {
         val taskDao = AppDatabase.getDatabase(application).taskDao()
         val reminderManager = ReminderManager(application)
-        repository = TaskRepository(taskDao, reminderManager)
+        repository = TaskRepository(taskDao, reminderManager, application)
 
         allTasks = combine(repository.allTasks, _sortOrder, _sortDirection, _searchQuery) { tasks, sortOrder, sortDirection, query ->
             val filteredTasks = if (query.isBlank()) {
@@ -90,14 +90,12 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     fun addTask(title: String, notes: String? = null, dueDate: Long? = null, priority: Priority = Priority.MEDIUM, recurrence: Recurrence = Recurrence.NONE) {
         viewModelScope.launch {
             repository.insert(Task(title = title, notes = notes, dueDate = dueDate, priority = priority, recurrence = recurrence))
-            TaskWidget().updateAll(getApplication())
         }
     }
 
     fun updateTask(task: Task, newTitle: String, newNotes: String?, newDueDate: Long?, newPriority: Priority, newRecurrence: Recurrence) {
         viewModelScope.launch {
             repository.update(task.copy(title = newTitle, notes = newNotes, dueDate = newDueDate, priority = newPriority, recurrence = newRecurrence))
-            TaskWidget().updateAll(getApplication())
         }
     }
 
@@ -110,7 +108,6 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                 repository.insert(task.copy(id = 0, isCompleted = false, dueDate = nextDueDate, createdAt = System.currentTimeMillis()))
             }
             repository.update(task.copy(isCompleted = targetStatus))
-            TaskWidget().updateAll(getApplication())
         }
     }
 
@@ -129,7 +126,6 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteTask(task: Task) {
         viewModelScope.launch {
             repository.delete(task)
-            TaskWidget().updateAll(getApplication())
         }
     }
 }

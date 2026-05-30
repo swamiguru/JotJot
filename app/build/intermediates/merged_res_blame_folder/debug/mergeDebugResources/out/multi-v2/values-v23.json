@@ -4,7 +4,7 @@
             "outputFile": "com.example.jotjot.app-mergeDebugResources-50:/values-v23/values-v23.xml",
             "map": [
                 {
-                    "source": "/Users/masterswami/.gradle/caches/9.4.1/transforms/1fb0245d5274a3b49800430e1e557eb7/transformed/glance-appwidget-1.1.1/res/values-v23/values-v23.xml",
+                    "source": "/Users/masterswami/.gradle/caches/9.4.1/transforms/93c8debb430aa8bf4022740bad64f2dd/transformed/glance-appwidget-1.1.1/res/values-v23/values-v23.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",
@@ -21,7 +21,7 @@
                     }
                 },
                 {
-                    "source": "/Users/masterswami/.gradle/caches/9.4.1/transforms/8fe478964eca23424bb9dcebfc3eb838/transformed/work-runtime-2.7.1/res/values-v23/values-v23.xml",
+                    "source": "/Users/masterswami/.gradle/caches/9.4.1/transforms/78f0bd9061b240802da29384d1944d43/transformed/work-runtime-2.7.1/res/values-v23/values-v23.xml",
                     "from": {
                         "startLines": "2,3",
                         "startColumns": "4,4",

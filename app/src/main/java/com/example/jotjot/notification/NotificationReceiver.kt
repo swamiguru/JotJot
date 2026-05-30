@@ -10,6 +10,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.example.jotjot.MainActivity
 import com.example.jotjot.data.AppDatabase
+import com.example.jotjot.data.TaskRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -27,11 +28,13 @@ class NotificationReceiver : BroadcastReceiver() {
                 if (taskId != -1L) {
                     val database = AppDatabase.getDatabase(context)
                     val taskDao = database.taskDao()
+                    val reminderManager = ReminderManager(context)
+                    val repository = TaskRepository(taskDao, reminderManager, context)
                     
                     CoroutineScope(Dispatchers.IO).launch {
                         val task = taskDao.getTaskById(taskId)
                         if (task != null) {
-                            taskDao.updateTask(task.copy(isCompleted = true))
+                            repository.update(task.copy(isCompleted = true))
                         }
                     }
                     notificationManager.cancel(taskId.toInt())
@@ -44,11 +47,12 @@ class NotificationReceiver : BroadcastReceiver() {
                     
                     val database = AppDatabase.getDatabase(context)
                     val taskDao = database.taskDao()
+                    val repository = TaskRepository(taskDao, reminderManager, context)
                     
                     CoroutineScope(Dispatchers.IO).launch {
                         val task = taskDao.getTaskById(taskId)
                         if (task != null) {
-                            reminderManager.scheduleReminder(task.copy(dueDate = snoozeTime))
+                            repository.update(task.copy(dueDate = snoozeTime))
                         }
                     }
                     notificationManager.cancel(taskId.toInt())

@@ -219,6 +219,59 @@ public class TaskDao_Impl(
     }
   }
 
+  public override suspend fun getActiveTasks(): List<Task> {
+    val _sql: String = "SELECT * FROM tasks WHERE isCompleted = 0 ORDER BY dueDate ASC"
+    return performSuspending(__db, true, false) { _connection ->
+      val _stmt: SQLiteStatement = _connection.prepare(_sql)
+      try {
+        val _cursorIndexOfId: Int = getColumnIndexOrThrow(_stmt, "id")
+        val _cursorIndexOfTitle: Int = getColumnIndexOrThrow(_stmt, "title")
+        val _cursorIndexOfNotes: Int = getColumnIndexOrThrow(_stmt, "notes")
+        val _cursorIndexOfIsCompleted: Int = getColumnIndexOrThrow(_stmt, "isCompleted")
+        val _cursorIndexOfCreatedAt: Int = getColumnIndexOrThrow(_stmt, "createdAt")
+        val _cursorIndexOfDueDate: Int = getColumnIndexOrThrow(_stmt, "dueDate")
+        val _cursorIndexOfPriority: Int = getColumnIndexOrThrow(_stmt, "priority")
+        val _cursorIndexOfRecurrence: Int = getColumnIndexOrThrow(_stmt, "recurrence")
+        val _result: MutableList<Task> = mutableListOf()
+        while (_stmt.step()) {
+          val _item: Task
+          val _tmpId: Long
+          _tmpId = _stmt.getLong(_cursorIndexOfId)
+          val _tmpTitle: String
+          _tmpTitle = _stmt.getText(_cursorIndexOfTitle)
+          val _tmpNotes: String?
+          if (_stmt.isNull(_cursorIndexOfNotes)) {
+            _tmpNotes = null
+          } else {
+            _tmpNotes = _stmt.getText(_cursorIndexOfNotes)
+          }
+          val _tmpIsCompleted: Boolean
+          val _tmp: Int
+          _tmp = _stmt.getLong(_cursorIndexOfIsCompleted).toInt()
+          _tmpIsCompleted = _tmp != 0
+          val _tmpCreatedAt: Long
+          _tmpCreatedAt = _stmt.getLong(_cursorIndexOfCreatedAt)
+          val _tmpDueDate: Long?
+          if (_stmt.isNull(_cursorIndexOfDueDate)) {
+            _tmpDueDate = null
+          } else {
+            _tmpDueDate = _stmt.getLong(_cursorIndexOfDueDate)
+          }
+          val _tmpPriority: Priority
+          _tmpPriority = __Priority_stringToEnum(_stmt.getText(_cursorIndexOfPriority))
+          val _tmpRecurrence: Recurrence
+          _tmpRecurrence = __Recurrence_stringToEnum(_stmt.getText(_cursorIndexOfRecurrence))
+          _item =
+              Task(_tmpId,_tmpTitle,_tmpNotes,_tmpIsCompleted,_tmpCreatedAt,_tmpDueDate,_tmpPriority,_tmpRecurrence)
+          _result.add(_item)
+        }
+        _result
+      } finally {
+        _stmt.close()
+      }
+    }
+  }
+
   public override suspend fun getTaskById(id: Long): Task? {
     val _sql: String = "SELECT * FROM tasks WHERE id = ?"
     return performSuspending(__db, true, false) { _connection ->

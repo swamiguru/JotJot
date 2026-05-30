@@ -4,7 +4,7 @@
             "outputFile": "com.example.jotjot.app-mergeDebugResources-50:/values-v29/values-v29.xml",
             "map": [
                 {
-                    "source": "/Users/masterswami/.gradle/caches/9.4.1/transforms/1fb0245d5274a3b49800430e1e557eb7/transformed/glance-appwidget-1.1.1/res/values-v29/values-v29.xml",
+                    "source": "/Users/masterswami/.gradle/caches/9.4.1/transforms/93c8debb430aa8bf4022740bad64f2dd/transformed/glance-appwidget-1.1.1/res/values-v29/values-v29.xml",
                     "from": {
                         "startLines": "2,5,19,22,25,26,27",
                         "startColumns": "4,4,4,4,4,4,4",

@@ -7,7 +7,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
-import androidx.glance.GlanceTheme
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.lazy.LazyColumn
@@ -21,11 +20,12 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import androidx.glance.GlanceTheme
+import androidx.glance.material3.ColorProviders
 import com.example.jotjot.MainActivity
 import com.example.jotjot.data.AppDatabase
 import com.example.jotjot.data.Task
 import com.example.jotjot.data.Priority
-import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -35,9 +35,7 @@ class TaskWidget : GlanceAppWidget() {
         val database = AppDatabase.getDatabase(context)
         val taskDao = database.taskDao()
         
-        val activeTasks = taskDao.getAllTasks().first()
-            .filter { !it.isCompleted }
-            .sortedBy { it.dueDate ?: Long.MAX_VALUE }
+        val activeTasks = taskDao.getActiveTasks()
 
         provideContent {
             GlanceTheme {
