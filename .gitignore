@@ -1,1 +1,24 @@
-"*.imln.gradlen/local.propertiesn/.idea/cachesn/.idea/librariesn/.idea/modules.xmln/.idea/workspace.xmln/.idea/navEditor.xmln/.idea/assetWizardSettings.xmln.DS_Storen/buildn/app/buildn*.classn/capturesn.externalNativeBuildn.cxxnlocal.properties"
+# Gradle
+.gradle/
+build/
+/app/build/
+
+# Local configuration (contains machine-specific SDK path — never commit)
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+captures/
+.externalNativeBuild/
+.cxx/
+
+# OS files
+.DS_Store
+
+# Logs / keystores
+*.log
+*.jks
+*.keystore

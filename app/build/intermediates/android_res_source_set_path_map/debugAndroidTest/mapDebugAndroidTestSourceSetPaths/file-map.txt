@@ -1,6 +1,0 @@
-com.example.jotjot.test.app-androidTest-0 /Users/masterswami/AndroidStudioProjects/JotJot/app/build/generated/res/resValues/androidTest/debug
-com.example.jotjot.test.app-updated_navigation_xml-1 /Users/masterswami/AndroidStudioProjects/JotJot/app/build/generated/updated_navigation_xml/debugAndroidTest
-com.example.jotjot.test.app-mergeDebugAndroidTestResources-2 /Users/masterswami/AndroidStudioProjects/JotJot/app/build/intermediates/incremental/debugAndroidTest/mergeDebugAndroidTestResources/merged.dir
-com.example.jotjot.test.app-mergeDebugAndroidTestResources-3 /Users/masterswami/AndroidStudioProjects/JotJot/app/build/intermediates/incremental/debugAndroidTest/mergeDebugAndroidTestResources/stripped.dir
-com.example.jotjot.test.app-debugAndroidTest-4 /Users/masterswami/AndroidStudioProjects/JotJot/app/build/intermediates/merged_res/debugAndroidTest/mergeDebugAndroidTestResources
-gradleHome-0 /Users/masterswami/.gradle
