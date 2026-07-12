@@ -14,7 +14,6 @@ import com.example.jotjot.data.Recurrence
 import com.example.jotjot.widget.TaskWidget
 import androidx.glance.appwidget.updateAll
 import kotlinx.coroutines.flow.MutableStateFlow
-import java.util.Calendar
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -47,26 +46,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         repository = TaskRepository(taskDao, reminderManager, application)
 
         allTasks = combine(repository.allTasks, _sortOrder, _sortDirection, _searchQuery) { tasks, sortOrder, sortDirection, query ->
-            val filteredTasks = if (query.isBlank()) {
-                tasks
-            } else {
-                tasks.filter { 
-                    it.title.contains(query, ignoreCase = true) || 
-                    (it.notes?.contains(query, ignoreCase = true) ?: false)
-                }
-            }
-
-            val sortedTasks = when (sortOrder) {
-                SortOrder.CREATION_DATE -> filteredTasks.sortedBy { it.createdAt }
-                SortOrder.DUE_DATE -> filteredTasks.sortedWith(compareBy<Task> { it.dueDate == null }.thenBy { it.dueDate })
-                SortOrder.PRIORITY -> filteredTasks.sortedBy { it.priority }
-            }
-            
-            if (sortDirection == SortDirection.DESCENDING) {
-                sortedTasks.reversed()
-            } else {
-                sortedTasks
-            }
+            TaskListLogic.filterAndSort(tasks, sortOrder, sortDirection, query)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     }
 
@@ -103,23 +83,11 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             val targetStatus = isCompleted ?: !task.isCompleted
             if (targetStatus && !task.isCompleted && (task.recurrence != Recurrence.NONE) && (task.dueDate != null)) {
                 // If a recurring task is completed, create the next instance
-                val nextDueDate = calculateNextDueDate(task.dueDate, task.recurrence)
+                val nextDueDate = TaskListLogic.calculateNextDueDate(task.dueDate, task.recurrence)
                 repository.insert(task.copy(id = 0, isCompleted = false, dueDate = nextDueDate, createdAt = System.currentTimeMillis()))
             }
             repository.update(task.copy(isCompleted = targetStatus))
         }
-    }
-
-    private fun calculateNextDueDate(currentDueDate: Long, recurrence: Recurrence): Long {
-        val calendar = Calendar.getInstance().apply { timeInMillis = currentDueDate }
-        when (recurrence) {
-            Recurrence.DAILY -> calendar.add(Calendar.DAY_OF_YEAR, 1)
-            Recurrence.WEEKLY -> calendar.add(Calendar.WEEK_OF_YEAR, 1)
-            Recurrence.MONTHLY -> calendar.add(Calendar.MONTH, 1)
-            Recurrence.YEARLY -> calendar.add(Calendar.YEAR, 1)
-            Recurrence.NONE -> {}
-        }
-        return calendar.timeInMillis
     }
 
     fun deleteTask(task: Task) {
