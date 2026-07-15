@@ -11,8 +11,6 @@ import kotlinx.coroutines.launch
 
 import com.example.jotjot.data.Priority
 import com.example.jotjot.data.Recurrence
-import com.example.jotjot.widget.TaskWidget
-import androidx.glance.appwidget.updateAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow

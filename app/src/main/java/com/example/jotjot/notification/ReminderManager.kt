@@ -5,7 +5,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.provider.Settings
 import com.example.jotjot.data.Task
 
 class ReminderManager(private val context: Context) {
