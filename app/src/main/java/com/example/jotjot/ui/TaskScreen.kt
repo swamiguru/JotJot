@@ -105,6 +105,9 @@ fun TaskContent(
 ) {
     val activeTasks = remember(tasks) { tasks.filter { !it.isCompleted } }
     val completedTasks = remember(tasks) { tasks.filter { it.isCompleted } }
+    // Group active tasks into time buckets (Overdue / This Week / Next Week / Someday),
+    // preserving the current sort order within each bucket.
+    val activeBuckets = remember(activeTasks) { TaskGrouping.groupActive(activeTasks) }
     
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -326,7 +329,11 @@ fun TaskContent(
                         }
                     }
                 }
-                items(activeTasks, key = { it.id }) { task ->
+                activeBuckets.forEach { (category, bucketTasks) ->
+                    item(key = "cat_${category.name}") {
+                        CategoryHeader(title = category.displayName, count = bucketTasks.size)
+                    }
+                    items(bucketTasks, key = { it.id }) { task ->
                     val dismissState = rememberSwipeToDismissBoxState(
                         confirmValueChange = {
                             when (it) {
@@ -402,7 +409,8 @@ fun TaskContent(
                         )
                     }
                 }
-                
+                }
+
                 if (completedTasks.isNotEmpty()) {
                     item {
                         Spacer(modifier = Modifier.height(32.dp))
@@ -875,6 +883,28 @@ fun TaskContent(
         )
     }
 }
+}
+
+@Composable
+private fun CategoryHeader(title: String, count: Int) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(start = 8.dp, top = 8.dp, bottom = 4.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Bold
+        )
+        Badge(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+        ) {
+            Text(text = count.toString(), style = MaterialTheme.typography.labelSmall)
+        }
+    }
 }
 
 @Composable
