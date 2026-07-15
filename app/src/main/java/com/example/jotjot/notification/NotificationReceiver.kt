@@ -34,7 +34,9 @@ class NotificationReceiver : BroadcastReceiver() {
                     CoroutineScope(Dispatchers.IO).launch {
                         val task = taskDao.getTaskById(taskId)
                         if (task != null) {
-                            repository.update(task.copy(isCompleted = true))
+                            // Use the shared completion path so recurring tasks
+                            // spawn their next occurrence, same as in the app.
+                            repository.completeTask(task)
                         }
                     }
                     notificationManager.cancel(taskId.toInt())
@@ -43,8 +45,13 @@ class NotificationReceiver : BroadcastReceiver() {
             ACTION_SNOOZE -> {
                 if (taskId != -1L) {
                     val reminderManager = ReminderManager(context)
-                    val snoozeTime = System.currentTimeMillis() + (10 * 60 * 1000) // 10 minutes
-                    
+                    // Snooze 10 minutes. Flag ms == 1 so the new time is treated as
+                    // a specific time (has-time sentinel) and displays correctly.
+                    val snoozeTime = java.util.Calendar.getInstance().apply {
+                        timeInMillis = System.currentTimeMillis() + (10 * 60 * 1000)
+                        set(java.util.Calendar.MILLISECOND, 1)
+                    }.timeInMillis
+
                     val database = AppDatabase.getDatabase(context)
                     val taskDao = database.taskDao()
                     val repository = TaskRepository(taskDao, reminderManager, context)

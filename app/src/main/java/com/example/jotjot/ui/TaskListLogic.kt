@@ -1,13 +1,12 @@
 package com.example.jotjot.ui
 
-import com.example.jotjot.data.Recurrence
 import com.example.jotjot.data.Task
-import java.util.Calendar
 
 /**
- * Pure, Android-free logic for filtering/sorting the task list and computing
- * recurrence dates. Kept separate from [TaskViewModel] so it can be unit tested
- * on the JVM without an emulator or Robolectric.
+ * Pure, Android-free logic for filtering/sorting the task list. Kept separate
+ * from [TaskViewModel] so it can be unit tested on the JVM without an emulator
+ * or Robolectric. Recurrence date math lives in
+ * [com.example.jotjot.data.RecurrenceCalculator].
  */
 object TaskListLogic {
 
@@ -38,21 +37,5 @@ object TaskListLogic {
         }
 
         return if (sortDirection == SortDirection.DESCENDING) sorted.reversed() else sorted
-    }
-
-    /**
-     * Given a due date and a recurrence rule, returns the next occurrence's due date.
-     * A [Recurrence.NONE] rule returns the input unchanged.
-     */
-    fun calculateNextDueDate(currentDueDate: Long, recurrence: Recurrence): Long {
-        val calendar = Calendar.getInstance().apply { timeInMillis = currentDueDate }
-        when (recurrence) {
-            Recurrence.DAILY -> calendar.add(Calendar.DAY_OF_YEAR, 1)
-            Recurrence.WEEKLY -> calendar.add(Calendar.WEEK_OF_YEAR, 1)
-            Recurrence.MONTHLY -> calendar.add(Calendar.MONTH, 1)
-            Recurrence.YEARLY -> calendar.add(Calendar.YEAR, 1)
-            Recurrence.NONE -> {}
-        }
-        return calendar.timeInMillis
     }
 }
