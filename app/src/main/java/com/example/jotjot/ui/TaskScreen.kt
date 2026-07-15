@@ -31,6 +31,7 @@ import com.example.jotjot.data.Priority
 import com.example.jotjot.data.Recurrence
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 import androidx.compose.foundation.Canvas
@@ -130,6 +131,18 @@ fun TaskContent(
             showCelebration = true
         }
         onToggleTaskCompletion(task, completed)
+    }
+
+    val openEditor = { editTask: Task ->
+        editingTask = editTask
+        taskTitle = editTask.title
+        taskNotes = editTask.notes ?: ""
+        taskPriority = editTask.priority
+        taskRecurrence = editTask.recurrence
+        selectedDateTime = editTask.dueDate?.let {
+            Calendar.getInstance().apply { timeInMillis = it }
+        }
+        showDialog = true
     }
 
     var showDatePicker by remember { mutableStateOf(false) }
@@ -332,81 +345,20 @@ fun TaskContent(
                         CategoryHeader(title = category.displayName, count = bucketTasks.size)
                     }
                     items(bucketTasks, key = { it.id }) { task ->
-                    val dismissState = rememberSwipeToDismissBoxState(
-                        confirmValueChange = {
-                            when (it) {
-                                SwipeToDismissBoxValue.StartToEnd -> {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            handleToggleCompletion(task, true)
-                                            scope.launch {
-                                                val result = snackbarHostState.showSnackbar(
-                                                    message = "Task completed",
-                                                    actionLabel = "UNDO",
-                                                    duration = SnackbarDuration.Short
-                                                )
-                                                if (result == SnackbarResult.ActionPerformed) {
-                                                    onToggleTaskCompletion(task, false)
-                                                }
-                                            }
-                                    true
-                                }
-                                SwipeToDismissBoxValue.EndToStart -> {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            onDeleteTask(task)
-                                            scope.launch {
-                                                val result = snackbarHostState.showSnackbar(
-                                                    message = "Task deleted",
-                                                    actionLabel = "UNDO",
-                                                    duration = SnackbarDuration.Short
-                                                )
-                                                if (result == SnackbarResult.ActionPerformed) {
-                                                    onAddTask(task.title, task.notes, task.dueDate, task.priority, task.recurrence)
-                                                }
-                                            }
-                                    true
-                                }
-                                else -> false
-                            }
-                        }
-                    )
-
-                    SwipeToDismissBox(
-                        state = dismissState,
-                        backgroundContent = { SwipeBackground(dismissState) },
-                        modifier = Modifier.animateItem(
-                            placementSpec = tween(durationMillis = 600)
-                        )
-                    ) {
-                        TaskCard(
+                        TaskRow(
                             task = task,
-                            onToggleCompletion = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                handleToggleCompletion(task, true)
-                                scope.launch {
-                                    val result = snackbarHostState.showSnackbar(
-                                        message = "Task completed",
-                                        actionLabel = "UNDO",
-                                        duration = SnackbarDuration.Short
-                                    )
-                                    if (result == SnackbarResult.ActionPerformed) {
-                                        onToggleTaskCompletion(task, false)
-                                    }
-                                }
-                            },
-                            onClick = {
-                                editingTask = task
-                                taskTitle = task.title
-                                taskNotes = task.notes ?: ""
-                                taskPriority = task.priority
-                                taskRecurrence = task.recurrence
-                                selectedDateTime = task.dueDate?.let {
-                                    Calendar.getInstance().apply { timeInMillis = it }
-                                }
-                                showDialog = true
-                            }
+                            completionTarget = true,
+                            completionMessage = "Task completed",
+                            snackbarHostState = snackbarHostState,
+                            scope = scope,
+                            onPrimaryToggle = handleToggleCompletion,
+                            onRawToggle = onToggleTaskCompletion,
+                            onDelete = onDeleteTask,
+                            onReAdd = { onAddTask(it.title, it.notes, it.dueDate, it.priority, it.recurrence) },
+                            onEdit = openEditor,
+                            modifier = Modifier.animateItem(placementSpec = tween(durationMillis = 600)),
                         )
                     }
-                }
                 }
 
                 if (completedTasks.isNotEmpty()) {
@@ -455,80 +407,19 @@ fun TaskContent(
                     
                     if (isCompletedExpanded) {
                         items(completedTasks, key = { it.id }) { task ->
-                            val dismissState = rememberSwipeToDismissBoxState(
-                                confirmValueChange = {
-                                    when (it) {
-                                        SwipeToDismissBoxValue.StartToEnd -> {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            handleToggleCompletion(task, false)
-                                            scope.launch {
-                                                val result = snackbarHostState.showSnackbar(
-                                                    message = "Task marked as active",
-                                                    actionLabel = "UNDO",
-                                                    duration = SnackbarDuration.Short
-                                                )
-                                                if (result == SnackbarResult.ActionPerformed) {
-                                                    onToggleTaskCompletion(task, true)
-                                                }
-                                            }
-                                            true
-                                        }
-                                        SwipeToDismissBoxValue.EndToStart -> {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            onDeleteTask(task)
-                                            scope.launch {
-                                                val result = snackbarHostState.showSnackbar(
-                                                    message = "Task deleted",
-                                                    actionLabel = "UNDO",
-                                                    duration = SnackbarDuration.Short
-                                                )
-                                                if (result == SnackbarResult.ActionPerformed) {
-                                                    onAddTask(task.title, task.notes, task.dueDate, task.priority, task.recurrence)
-                                                }
-                                            }
-                                            true
-                                        }
-                                        else -> false
-                                    }
-                                }
+                            TaskRow(
+                                task = task,
+                                completionTarget = false,
+                                completionMessage = "Task marked as active",
+                                snackbarHostState = snackbarHostState,
+                                scope = scope,
+                                onPrimaryToggle = handleToggleCompletion,
+                                onRawToggle = onToggleTaskCompletion,
+                                onDelete = onDeleteTask,
+                                onReAdd = { onAddTask(it.title, it.notes, it.dueDate, it.priority, it.recurrence) },
+                                onEdit = openEditor,
+                                modifier = Modifier.animateItem(placementSpec = tween(durationMillis = 600)),
                             )
-
-                            SwipeToDismissBox(
-                                state = dismissState,
-                                backgroundContent = { SwipeBackground(dismissState) },
-                                modifier = Modifier.animateItem(
-                                    placementSpec = tween(durationMillis = 600)
-                                )
-                            ) {
-                                TaskCard(
-                                    task = task,
-                                    onToggleCompletion = {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        handleToggleCompletion(task, false)
-                                        scope.launch {
-                                            val result = snackbarHostState.showSnackbar(
-                                                message = "Task marked as active",
-                                                actionLabel = "UNDO",
-                                                duration = SnackbarDuration.Short
-                                            )
-                                            if (result == SnackbarResult.ActionPerformed) {
-                                                onToggleTaskCompletion(task, true)
-                                            }
-                                        }
-                                    },
-                                    onClick = {
-                                        editingTask = task
-                                        taskTitle = task.title
-                                        taskNotes = task.notes ?: ""
-                                        taskPriority = task.priority
-                                        taskRecurrence = task.recurrence
-                                        selectedDateTime = task.dueDate?.let {
-                                            Calendar.getInstance().apply { timeInMillis = it }
-                                        }
-                                        showDialog = true
-                                    }
-                                )
-                            }
                         }
                     }
                 }
@@ -881,6 +772,80 @@ fun TaskContent(
         )
     }
 }
+}
+
+@Composable
+private fun TaskRow(
+    task: Task,
+    completionTarget: Boolean,
+    completionMessage: String,
+    snackbarHostState: SnackbarHostState,
+    scope: CoroutineScope,
+    onPrimaryToggle: (Task, Boolean?) -> Unit,
+    onRawToggle: (Task, Boolean?) -> Unit,
+    onDelete: (Task) -> Unit,
+    onReAdd: (Task) -> Unit,
+    onEdit: (Task) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val haptic = LocalHapticFeedback.current
+
+    // Marks the task complete/active and offers an UNDO snackbar. Shared by the
+    // swipe gesture and the checkbox tap.
+    val toggleWithUndo: () -> Unit = {
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        onPrimaryToggle(task, completionTarget)
+        scope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = completionMessage,
+                actionLabel = "UNDO",
+                duration = SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                onRawToggle(task, !completionTarget)
+            }
+        }
+        Unit
+    }
+
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            when (value) {
+                SwipeToDismissBoxValue.StartToEnd -> {
+                    toggleWithUndo()
+                    true
+                }
+                SwipeToDismissBoxValue.EndToStart -> {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onDelete(task)
+                    scope.launch {
+                        val result = snackbarHostState.showSnackbar(
+                            message = "Task deleted",
+                            actionLabel = "UNDO",
+                            duration = SnackbarDuration.Short,
+                        )
+                        if (result == SnackbarResult.ActionPerformed) {
+                            onReAdd(task)
+                        }
+                    }
+                    true
+                }
+                else -> false
+            }
+        },
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = { SwipeBackground(dismissState) },
+        modifier = modifier,
+    ) {
+        TaskCard(
+            task = task,
+            onToggleCompletion = { toggleWithUndo() },
+            onClick = { onEdit(task) },
+        )
+    }
 }
 
 @Composable
