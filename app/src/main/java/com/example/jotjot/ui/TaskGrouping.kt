@@ -9,9 +9,11 @@ import java.util.Calendar
  */
 enum class TaskCategory(val displayName: String) {
     OVERDUE("Overdue"),
+    TODAY("Today"),
     THIS_WEEK("This Week"),
     NEXT_WEEK("Next Week"),
     SOMEDAY("Someday"),
+    NO_DATE("No Date"),
 }
 
 /**
@@ -20,27 +22,39 @@ enum class TaskCategory(val displayName: String) {
  * All calculations use the JVM default timezone (mirroring the device), and are
  * unit tested on the JVM.
  *
- * Bucket definitions (relative to today):
- *  - OVERDUE   : due on a calendar day before today
- *  - THIS_WEEK : due today through the end of the current (Mon–Sun) week
+ * Bucket definitions (relative to now):
+ *  - OVERDUE   : a timed task whose exact time has passed, or any task due before today
+ *  - TODAY     : due today and not yet past (date-only tasks stay here all day)
+ *  - THIS_WEEK : due tomorrow through the end of the current (Mon–Sun) week
  *  - NEXT_WEEK : due during the following Mon–Sun week
- *  - SOMEDAY   : no due date, or due beyond next week
+ *  - SOMEDAY   : due beyond next week
+ *  - NO_DATE   : no due date set
  */
 object TaskGrouping {
 
     private val DISPLAY_ORDER = listOf(
         TaskCategory.OVERDUE,
+        TaskCategory.TODAY,
         TaskCategory.THIS_WEEK,
         TaskCategory.NEXT_WEEK,
         TaskCategory.SOMEDAY,
+        TaskCategory.NO_DATE,
     )
 
-    /** Returns the bucket a task with [dueDate] belongs to. Null due date => SOMEDAY. */
+    /** Returns the bucket a task with [dueDate] belongs to. Null due date => NO_DATE. */
     fun categorize(dueDate: Long?, now: Long = System.currentTimeMillis()): TaskCategory {
-        if (dueDate == null) return TaskCategory.SOMEDAY
+        if (dueDate == null) return TaskCategory.NO_DATE
 
         val todayStart = startOfDay(now)
-        if (dueDate < todayStart) return TaskCategory.OVERDUE
+
+        // A specific time-of-day is encoded by a millisecond sentinel of 1 (set by the
+        // add/edit screen); date-only tasks use 0. A timed task is overdue the moment
+        // its time passes; a date-only task is overdue only once the whole day is over.
+        val hasTime = dueDate % 1000L == 1L
+        val isOverdue = if (hasTime) dueDate < now else dueDate < todayStart
+        if (isOverdue) return TaskCategory.OVERDUE
+
+        if (startOfDay(dueDate) == todayStart) return TaskCategory.TODAY
 
         val thisWeekStart = startOfWeekMonday(now)
         val nextWeekStart = addDays(thisWeekStart, 7)
