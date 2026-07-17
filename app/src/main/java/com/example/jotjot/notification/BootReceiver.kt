@@ -15,12 +15,20 @@ class BootReceiver : BroadcastReceiver() {
             val taskDao = database.taskDao()
             val reminderManager = ReminderManager(context)
 
+            // See NotificationReceiver for why goAsync() matters here: without it
+            // the process can be killed partway through rescheduling, leaving some
+            // reminders silently un-scheduled after a reboot.
+            val pendingResult = goAsync()
             CoroutineScope(Dispatchers.IO).launch {
-                val tasksToReschedule = taskDao.getActiveTasksWithReminders()
-                tasksToReschedule.forEach { task ->
-                    if (task.dueDate != null && task.dueDate > System.currentTimeMillis()) {
-                        reminderManager.scheduleReminder(task)
+                try {
+                    val tasksToReschedule = taskDao.getActiveTasksWithReminders()
+                    tasksToReschedule.forEach { task ->
+                        if (task.dueDate != null && task.dueDate > System.currentTimeMillis()) {
+                            reminderManager.scheduleReminder(task)
+                        }
                     }
+                } finally {
+                    pendingResult.finish()
                 }
             }
         }

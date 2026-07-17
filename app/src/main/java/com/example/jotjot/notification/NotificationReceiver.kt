@@ -30,13 +30,23 @@ class NotificationReceiver : BroadcastReceiver() {
                     val taskDao = database.taskDao()
                     val reminderManager = ReminderManager(context)
                     val repository = TaskRepository(taskDao, reminderManager, context)
-                    
+
+                    // goAsync() tells the system this receiver isn't done when onReceive()
+                    // returns, keeping the process alive for the async DB write below.
+                    // Without it, Android is free to kill the process as soon as onReceive
+                    // returns (which happens almost immediately since launch() doesn't
+                    // block) -- which can happen mid-write, leaving the task not marked
+                    // complete and its alarm not cancelled, so the reminder fires again
+                    // later looking like the task "reopened".
+                    val pendingResult = goAsync()
                     CoroutineScope(Dispatchers.IO).launch {
-                        val task = taskDao.getTaskById(taskId)
-                        if (task != null) {
-                            // Use the shared completion path so recurring tasks
-                            // spawn their next occurrence, same as in the app.
-                            repository.completeTask(task)
+                        try {
+                            // completeTask re-reads the task fresh and is idempotent, so
+                            // this is safe even if the action is triggered more than once
+                            // (e.g. a double tap) for the same task.
+                            repository.completeTask(taskId)
+                        } finally {
+                            pendingResult.finish()
                         }
                     }
                     notificationManager.cancel(taskId.toInt())
@@ -55,11 +65,16 @@ class NotificationReceiver : BroadcastReceiver() {
                     val database = AppDatabase.getDatabase(context)
                     val taskDao = database.taskDao()
                     val repository = TaskRepository(taskDao, reminderManager, context)
-                    
+
+                    val pendingResult = goAsync()
                     CoroutineScope(Dispatchers.IO).launch {
-                        val task = taskDao.getTaskById(taskId)
-                        if (task != null) {
-                            repository.update(task.copy(dueDate = snoozeTime))
+                        try {
+                            val task = taskDao.getTaskById(taskId)
+                            if (task != null) {
+                                repository.update(task.copy(dueDate = snoozeTime))
+                            }
+                        } finally {
+                            pendingResult.finish()
                         }
                     }
                     notificationManager.cancel(taskId.toInt())
