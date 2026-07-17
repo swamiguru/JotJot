@@ -76,26 +76,21 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Remembers the next occurrence spawned when a recurring task was completed,
-    // keyed by the completed task's id, so an undo can remove it and avoid leaving
-    // a duplicate behind.
-    private val spawnedByCompletedId = mutableMapOf<Long, Task>()
-
     fun toggleTaskCompletion(task: Task, isCompleted: Boolean? = null) {
         viewModelScope.launch {
             val targetStatus = isCompleted ?: !task.isCompleted
-            if (targetStatus && !task.isCompleted) {
-                // Completion (and any recurrence) is handled in one place by the repository.
-                val spawned = repository.completeTask(task)
-                if (spawned != null) {
-                    spawnedByCompletedId[task.id] = spawned
-                }
+            if (targetStatus) {
+                // Completion (and any recurrence) is handled in one place by the
+                // repository, atomically and idempotently -- safe even if the task
+                // was already completed by the time this runs (e.g. a racing
+                // notification action).
+                repository.completeTask(task.id)
             } else {
-                repository.update(task.copy(isCompleted = targetStatus))
-                if (!targetStatus) {
-                    // Undoing a completion: remove the next occurrence it created, if any.
-                    spawnedByCompletedId.remove(task.id)?.let { repository.delete(it) }
-                }
+                // Un-completing is also atomic and idempotent, and finds any
+                // spawned next occurrence via a durable DB link rather than an
+                // in-memory record, so it works correctly even across an app
+                // restart. See TaskRepository.uncompleteTask.
+                repository.uncompleteTask(task.id)
             }
         }
     }

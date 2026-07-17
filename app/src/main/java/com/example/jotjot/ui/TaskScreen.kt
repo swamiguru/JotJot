@@ -154,8 +154,15 @@ fun TaskContent(
         }
     }
 
+    // Tracks whether we've already auto-opened the editor for the current
+    // initialTaskIdToEdit (from tapping a notification). Without this guard, the
+    // LaunchedEffect below re-runs on every emission of `tasks` -- which happens
+    // whenever ANY task changes, not just this one -- and would force the dialog
+    // back open even after the user closed it.
+    var hasOpenedFromNotification by remember(initialTaskIdToEdit) { mutableStateOf(false) }
+
     LaunchedEffect(initialTaskIdToEdit, tasks) {
-        if (initialTaskIdToEdit != -1L) {
+        if (initialTaskIdToEdit != -1L && !hasOpenedFromNotification) {
             val task = tasks.find { it.id == initialTaskIdToEdit }
             if (task != null) {
                 editingTask = task
@@ -167,6 +174,7 @@ fun TaskContent(
                     Calendar.getInstance().apply { timeInMillis = it }
                 }
                 showDialog = true
+                hasOpenedFromNotification = true
             }
         }
     }
