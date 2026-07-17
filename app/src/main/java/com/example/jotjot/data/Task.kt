@@ -21,5 +21,11 @@ data class Task(
     val createdAt: Long = System.currentTimeMillis(),
     val dueDate: Long? = null,
     val priority: Priority = Priority.MEDIUM,
-    val recurrence: Recurrence = Recurrence.NONE
+    val recurrence: Recurrence = Recurrence.NONE,
+    // Id of the task this row was spawned from on completion (recurring tasks
+    // only), or null otherwise. Durable link -- stored in the DB rather than
+    // kept only in memory -- so un-completing the original can reliably find
+    // and remove the occurrence it spawned, even after the app restarts or
+    // the undo snackbar's window has long passed.
+    val spawnedFromId: Long? = null
 )
